@@ -1,49 +1,105 @@
-# WindyVR LSV team 0.1.1
+# WindyVR LSV team v1.0.0
 
-Première réécriture légère du plugin WindyVR LSV team pour comparer jusqu'à trois routages issus de Virtual Regatta.
+Plugin Windy destiné à la comparaison de routes issues de différents routeurs pour Virtual Regatta.
+
+WindyVR LSV team permet d'afficher simultanément jusqu'à quatre routages sur la carte Windy et de comparer leur situation à un instant donné en utilisant directement le slider temporel de Windy.
 
 ## Fonctionnalités
 
 - Jusqu'à 4 routes simultanées.
-- Import CSV / GPX avec prise en charge ciblée d'Avalon, VRZen et eSail4VR, plus des variantes génériques proches.
-- Synchronisation sur `store.timestamp`, donc sur le slider temporel natif de Windy.
-- Interpolation de la position entre deux waypoints temporels.
-- Une seule polyline et un seul marqueur bateau par route : pas de marqueur par waypoint.
-- Comparaison ECMWF / GFS / ICON pour la position de chaque route à l'instant T.
-- TWS, TWD, TWA des trois modèles + COG/SOG/TWS/TWA/voile du routeur lorsque ces champs existent.
-- Debounce météo de 450 ms et cache borné pour limiter les appels lors du déplacement du slider.
-- Nettoyage systématique de `store.on`, timers et couches cartographiques dans `onDestroy`.
+- Import automatique des fichiers CSV et GPX compatibles.
+- Reconnaissance des routages Avalon, VRZen, eSail4VR et ZEZO.
+- Détection automatique du format et du routeur lorsque les informations disponibles le permettent.
+- Une couleur distincte pour chaque route.
+- Affichage d'un marqueur bateau compact sur chaque route.
+- Synchronisation automatique de la position des bateaux avec le slider temporel Windy.
+- Interpolation de la position entre deux points temporels.
+- Comparaison météo simultanée des modèles :
+  - ECMWF
+  - GFS
+  - ICON
+- Affichage des données du routeur disponibles à l'instant sélectionné :
+  - COG
+  - SOG
+  - Voile
+  - TWA
+  - TWS
+  - TWD
+- Les données non fournies par le routeur sont affichées avec `-`.
+- Harmonisation des noms de voiles avec les abréviations :
+  - Jib : `Jib`
+  - Spi : `Spi`
+  - Génois léger / Light Jib : `LJ`
+  - Spi léger / Light Gennaker : `LG`
+  - Trinquette / Staysail : `Stay`
+  - Spi lourd / Heavy Gennaker : `HG`
+  - C0 : `C0`
+- Optimisation des requêtes météo afin de limiter l'impact sur les performances de Windy.
 
-## Installation / test dans Windy
+## Comparaison des modèles météo
 
-1. Installer Node.js 18+.
-2. Dans ce dossier : `npm install`
-3. Lancer : `npm start`
-4. Ouvrir `https://localhost:9999/plugin.js` une fois et accepter le certificat local.
-5. Ouvrir `https://www.windy.com/developer-mode` puis charger `https://localhost:9999/plugin.js`.
+Pour chaque route et pour la position correspondant à l'heure sélectionnée avec le slider Windy, le plugin affiche les données provenant des modèles :
 
-Le projet suit le template Windy officiel actuel. Le plugin est marqué `private: true` pour les essais.
+**ECMWF / GFS / ICON**
 
-## Formats reconnus
+Les informations disponibles comprennent :
 
-### Avalon CSV
-Colonnes typiques : `Date;Latitude;Longitude;Heading;Speed;SailSet;TWA;TWD;TWS`.
+- TWS : True Wind Speed
+- TWD : True Wind Direction
+- TWA : True Wind Angle
 
-### CSV alternatifs / VRZen
-Le parseur accepte plusieurs alias : `time/date/timestamp`, `lat/latitude`, `lon/longitude`, `COG/HDG/course`, `SOG/speed`, `TWS`, `TWD`, `TWA`, `sail`.
+Les informations du routeur sont affichées séparément afin de permettre une comparaison rapide entre le routage prévu et les différents modèles météo Windy.
 
-### GPX
-Le parseur accepte `wpt`, `rtept` et `trkpt`. Il reprend les deux descriptions historiques du plugin WindyVR LSV team :
-- `COG = ... SOG = ... TWS = ... TWA = ... SAIL = ...`
-- `HDG:... TWA:... <voile> SOG:... kt TWS:... kt`
+## Routeurs et formats pris en charge
 
-Il essaie aussi de lire des valeurs `cog/sog/tws/twd/twa` dans les extensions XML.
+### Avalon
 
-## Limite de cette première version
+Formats pris en charge :
 
-Les exports exacts de VRZen CSV et eSail4VR GPX peuvent varier selon les versions de ces routeurs. Si un de tes fichiers réels n'est pas reconnu, il faudra me donner un exemple d'export concerné ; le parseur est volontairement séparé dans `src/routeParser.js` pour qu'on puisse l'ajuster sans toucher au reste du plugin.
+- CSV
+- GPX
 
+Lorsque les informations sont présentes dans le fichier, le plugin récupère notamment COG, SOG, TWS, TWD, TWA et la voile.
 
-## v0.1.3
-- Correction de la conversion du vent Windy ECMWF/GFS/ICON en reprenant `metrics.wind.convertValue`.
-- Petit pictogramme bateau SVG à la place de la grande flèche.
+### VRZen
+
+Formats pris en charge :
+
+- CSV
+- GPX
+
+Les informations disponibles dans l'export VRZen sont utilisées automatiquement.
+
+### eSail4VR
+
+Format pris en charge :
+
+- GPX
+
+Certaines informations de navigation ne sont pas fournies par les exports eSail4VR. Dans ce cas, les valeurs correspondantes restent affichées avec `-`.
+
+### ZEZO
+
+Formats pris en charge :
+
+- CSV
+- GPX
+
+Le plugin détecte automatiquement ZEZO à partir des informations disponibles dans le fichier.
+
+## Utilisation
+
+1. Ouvrir Windy.
+2. Ouvrir le plugin **WindyVR LSV team**.
+3. Ajouter jusqu'à quatre routes.
+4. Utiliser le slider temporel de Windy pour choisir l'instant à comparer.
+5. Les bateaux se déplacent automatiquement sur leurs routes respectives.
+6. Les informations de navigation et les données ECMWF, GFS et ICON sont automatiquement actualisées.
+
+Cela permet de comparer rapidement les choix proposés par plusieurs routeurs sur une même situation météo.
+
+## Version
+
+**WindyVR LSV team v1.0.0**
+
+Version destinée au partage avec l'équipe LSV.
