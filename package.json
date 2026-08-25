@@ -1,6 +1,6 @@
 {
   "name": "windy-plugin-windyvr-lsv-team",
- "version": "1.0.1",
+ "version": "1.0.2",
   "description": "Lightweight route comparison plugin for Virtual Regatta routings in Windy.com",
   "main": "dist/plugin.min.js",
   "type": "module",
