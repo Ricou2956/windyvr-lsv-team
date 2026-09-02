@@ -1,10 +1,11 @@
 const num = value => {
   if (value == null || value === '') return null;
-  const n = Number(String(value).trim().replace(',', '.'));
+  const match = String(value).trim().replace(',', '.').match(/[-+]?\d+(?:\.\d+)?/);
+  const n = match ? Number(match[0]) : NaN;
   return Number.isFinite(n) ? n : null;
 };
 
-const clean = value => String(value ?? '').trim().replace(/^"|"$/g, '');
+const clean = value => String(value ?? '').replace(/\uFEFF/g, '').trim().replace(/^"|"$/g, '');
 const norm = value => clean(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[ _.-]+/g, '');
 const angle180 = value => {
   const n = num(value); if (n == null) return null;
@@ -83,6 +84,9 @@ const aliases = {
   twd: ['twd', 'winddir', 'winddirection'],
   twa: ['twa', 'windangle'],
   sail: ['sailset', 'sail', 'voile'],
+  currentSpeed: ['currentspeed', 'current speed', 'vitesse courant'],
+  currentDir: ['currentdir', 'current dir', 'current dir.', 'direction courant'],
+  pressure: ['pressure', 'pression'],
 };
 
 function getCol(headers, names) {
@@ -107,7 +111,7 @@ function finalize(points) {
 }
 
 export function parseCsv(text) {
-  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const lines = text.replace(/^\uFEFF+/, '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   if (lines.length < 3) throw new Error('CSV vide ou incomplet.');
   const delimiter = detectDelimiter(lines[0]);
   const headers = splitCsvLine(lines[0], delimiter).map(clean);
@@ -129,7 +133,11 @@ export function parseCsv(text) {
       time = parseAvalonDate(row[idx.time], year);
       if (time && previous && time < previous) { year += 1; time = parseAvalonDate(row[idx.time], year); }
     } else {
-      const ms = Date.parse(clean(row[idx.time]));
+      const rawTime = clean(row[idx.time]);
+      const explicitUtc = isZezo && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?$/.test(rawTime)
+        ? `${rawTime.replace(' ', 'T')}Z`
+        : rawTime;
+      const ms = Date.parse(explicitUtc);
       time = Number.isNaN(ms) ? parseAvalonDate(row[idx.time], year) : new Date(ms);
     }
     if (!time) continue;
@@ -143,6 +151,9 @@ export function parseCsv(text) {
       twd: idx.twd >= 0 ? num(row[idx.twd]) : null,
       twa: idx.twa >= 0 ? angle180(row[idx.twa]) : null,
       sail: idx.sail >= 0 ? normalizeSail(row[idx.sail]) : null,
+      currentSpeed: idx.currentSpeed >= 0 ? num(row[idx.currentSpeed]) : null,
+      currentDir: idx.currentDir >= 0 ? num(row[idx.currentDir]) : null,
+      pressure: idx.pressure >= 0 ? num(row[idx.pressure]) : null,
     });
   }
   return { source: isZezo ? 'ZEZO' : (isAvalon ? 'Avalon' : 'CSV routeur'), points: finalize(points) };
@@ -188,23 +199,35 @@ export function parseGpx(text) {
     return {
       time: Number.isNaN(ms) ? null : new Date(ms),
       lat: num(el.getAttribute('lat')), lon: num(el.getAttribute('lon')),
-      cog: desc.cog ?? findExtensionNumber(el, ['cog', 'course', 'heading', 'hdg']),
-      sog: desc.sog ?? findExtensionNumber(el, ['sog', 'speed']),
-      tws: desc.tws ?? findExtensionNumber(el, ['tws', 'windspeed']),
-      twd: findExtensionNumber(el, ['twd', 'winddir', 'winddirection']),
+      cog: desc.cog ?? findExtensionNumber(el, ['cog', 'cog_deg', 'course', 'heading', 'hdg']),
+      sog: desc.sog ?? findExtensionNumber(el, ['sog', 'sog_kn', 'speed']),
+      tws: desc.tws ?? findExtensionNumber(el, ['tws', 'tws_kn', 'windspeed']),
+      twd: findExtensionNumber(el, ['twd', 'twd_deg', 'winddir', 'winddirection']),
       twa: angle180(desc.twa ?? findExtensionNumber(el, ['twa', 'windangle'])),
       sail: normalizeSail(desc.sail ?? directText(el, 'type') ?? null),
+      currentSpeed: findExtensionNumber(el, ['currentspeed', 'current_speed_kn', 'current speed']),
+      currentDir: findExtensionNumber(el, ['currentdir', 'current_direction_deg', 'current dir']),
+      pressure: findExtensionNumber(el, ['pressure', 'pressure_hpa', 'pression']),
     };
   });
 
   const descSample = pointsEls.map(e => directText(e, 'desc') || '').join(' ');
-  let source = 'GPX routeur';
+  const routePoints = [...xml.querySelectorAll('rtept')];
+  const hasESailStructure = routePoints.length >= 2
+    && routePoints.slice(0, Math.min(routePoints.length, 8)).every(el => directText(el, 'course') && directText(el, 'speed'));
   const metaText = xml.querySelector('metadata')?.textContent || '';
-  if (/zezo/i.test(creator + ' ' + metaText + ' ' + descSample)) source = 'ZEZO';
-  else if (/avalon/i.test(creator + ' ' + descSample)) source = 'Avalon';
-  else if (/vrzen|vr zen/i.test(creator + ' ' + descSample)) source = 'VRZen';
-  else if (/esail|e-sail/i.test(creator + ' ' + descSample)) source = 'eSail4VR';
+  const source = detectGpxSource({ creator, metaText, descSample, hasESailStructure });
   return { source, points: finalize(points) };
+}
+
+export function detectGpxSource({ creator = '', metaText = '', descSample = '', hasESailStructure = false } = {}) {
+  const identity = `${creator} ${metaText} ${descSample}`;
+  if (/dorado/i.test(identity)) return 'Dorado';
+  if (/zezo/i.test(identity)) return 'ZEZO';
+  if (/avalon/i.test(`${creator} ${descSample}`)) return 'Avalon';
+  if (/vrzen|vr zen/i.test(identity)) return 'VRZen';
+  if (/esail|e-sail/i.test(identity) || hasESailStructure) return 'eSail4VR';
+  return 'GPX routeur';
 }
 
 export async function parseRouteFile(file) {
@@ -217,7 +240,8 @@ export async function parseRouteFile(file) {
     else if (/zezo/i.test(name)) parsed.source = 'ZEZO';
     else if (/avalon/i.test(name)) parsed.source = 'Avalon';
     else if (/esail|e-sail/i.test(name)) parsed.source = 'eSail4VR';
-    return parsed;
+    else if (/dorado/i.test(name)) parsed.source = 'Dorado';
+    return { ...parsed, ...inferRouteMetadata(file.name, parsed.source) };
   }
   if (ext === 'gpx') {
     const parsed = parseGpx(text);
@@ -227,8 +251,26 @@ export async function parseRouteFile(file) {
       else if (/zezo/i.test(name)) parsed.source = 'ZEZO';
       else if (/avalon/i.test(name)) parsed.source = 'Avalon';
       else if (/esail|e-sail/i.test(name)) parsed.source = 'eSail4VR';
+      else if (/dorado/i.test(name)) parsed.source = 'Dorado';
     }
-    return parsed;
+    return { ...parsed, ...inferRouteMetadata(file.name, parsed.source) };
   }
   throw new Error('Format non pris en charge : utilisez .csv ou .gpx.');
+}
+
+export function inferRouteMetadata(fileName = '', source = '') {
+  const name = clean(fileName);
+  const upper = name.toUpperCase();
+  let nativeModel = null;
+  if (/ECMWF|\bIFS\b/.test(upper)) nativeModel = 'ecmwf';
+  else if (/NCEP|\bGFS\b/.test(upper)) nativeModel = 'gfs';
+  else if (['Avalon', 'VRZen', 'eSail4VR', 'ZEZO'].includes(source)) nativeModel = 'gfs';
+
+  let cycle = null;
+  const compact = name.match(/(?:^|[_-])(20\d{8})(?:[_\-.]|$)/);
+  if (compact) {
+    const stamp = compact[1];
+    cycle = `${stamp.slice(0, 4)}-${stamp.slice(4, 6)}-${stamp.slice(6, 8)} ${stamp.slice(8, 10)}Z`;
+  }
+  return { nativeModel, cycle };
 }
