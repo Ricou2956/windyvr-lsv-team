@@ -65,19 +65,47 @@ export function normalizeWindFields(point) {
   return normalized;
 }
 
-function parseAvalonDate(value, yearHint = new Date().getUTCFullYear()) {
+function parseAvalonDateParts(value) {
   const s = clean(value);
-  const direct = Date.parse(s);
-  if (!Number.isNaN(direct) && /\d{4}/.test(s)) return new Date(direct);
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
   if (!m) return null;
   const [, dd, mm, hh, mi, ss = '0'] = m;
-  return new Date(Date.UTC(yearHint, Number(mm) - 1, Number(dd), Number(hh), Number(mi), Number(ss)));
+  return { day: Number(dd), month: Number(mm), hour: Number(hh), minute: Number(mi), second: Number(ss) };
+}
+
+function localDateFromParts(parts, year) {
+  if (!parts || !Number.isInteger(year)) return null;
+  const date = new Date(year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  if (date.getFullYear() !== year || date.getMonth() !== parts.month - 1 || date.getDate() !== parts.day
+    || date.getHours() !== parts.hour || date.getMinutes() !== parts.minute || date.getSeconds() !== parts.second) return null;
+  return date;
+}
+
+export function inferClosestAvalonYear(value, now = new Date()) {
+  const parts = parseAvalonDateParts(value);
+  if (!parts || !(now instanceof Date) || Number.isNaN(now.getTime())) return null;
+  const baseYear = now.getFullYear();
+  const candidates = [baseYear - 1, baseYear, baseYear + 1]
+    .map(year => ({ year, date: localDateFromParts(parts, year) }))
+    .filter(item => item.date);
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => Math.abs(a.date - now) - Math.abs(b.date - now));
+  return candidates[0].year;
+}
+
+function parseAvalonDate(value, yearHint = null, now = new Date()) {
+  const s = clean(value);
+  const direct = Date.parse(s);
+  if (!Number.isNaN(direct) && /\d{4}/.test(s)) return new Date(direct);
+  const parts = parseAvalonDateParts(s);
+  if (!parts) return null;
+  const year = Number.isInteger(yearHint) ? yearHint : inferClosestAvalonYear(s, now);
+  return localDateFromParts(parts, year);
 }
 
 function isProbableYearRollover(previous, candidate) {
   if (!(previous instanceof Date) || !(candidate instanceof Date)) return false;
-  return previous.getUTCMonth() >= 10 && candidate.getUTCMonth() <= 1;
+  return previous.getMonth() >= 10 && candidate.getMonth() <= 1;
 }
 
 function detectDelimiter(line) {
@@ -108,7 +136,7 @@ const aliases = {
   time: ['date', 'time', 'datetime', 'timestamp', 'utc', 'heure', 'DateHeure(UTC)'],
   lat: ['latitude', 'lat'],
   lon: ['longitude', 'lon', 'lng', 'long'],
-  cog: ['heading', 'cog', 'hdg', 'cap', 'course', 'currentdir'],
+  cog: ['heading', 'cog', 'hdg', 'cap', 'course'],
   sog: ['speed', 'sog', 'boatspeed', 'vitesse', 'Speed(kt)'],
   tws: ['tws', 'windspeed', 'vent', 'TWS(kt)'],
   twd: ['twd', 'winddir', 'winddirection'],
@@ -157,9 +185,15 @@ function mergeDuplicatePoints(a, b) {
   return merged;
 }
 
+function isValidPosition(point) {
+  return Number.isFinite(point?.lat) && Number.isFinite(point?.lon) && Math.abs(point.lat) <= 90 && Math.abs(point.lon) <= 180;
+}
+
 function finalize(points) {
-  const validInInputOrder = points
-    .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon) && p.time instanceof Date && !Number.isNaN(p.time.getTime()));
+  const timedInInputOrder = points
+    .filter(p => p.time instanceof Date && !Number.isNaN(p.time.getTime()));
+  const discardedInvalidPositions = timedInInputOrder.filter(point => !isValidPosition(point)).length;
+  const validInInputOrder = timedInInputOrder.filter(isValidPosition);
   const qualityMeta = analyzeTemporalOrder(validInInputOrder);
   const sorted = [...validInInputOrder].sort((a, b) => a.time - b.time);
   const deduplicated = [];
@@ -168,7 +202,10 @@ function finalize(points) {
     if (previous && previous.time.getTime() === point.time.getTime()) deduplicated[deduplicated.length - 1] = mergeDuplicatePoints(previous, point);
     else deduplicated.push({ ...point });
   }
-  if (deduplicated.length < 2) throw new Error('La route doit contenir au moins deux points horodatés.');
+  if (deduplicated.length < 2) {
+    if (discardedInvalidPositions) throw new Error(`La route ne contient pas assez de positions valides après rejet de ${discardedInvalidPositions} position(s) invalide(s).`);
+    throw new Error('La route doit contenir au moins deux points horodatés.');
+  }
   for (let i = 0; i < deduplicated.length - 1; i += 1) {
     if (!Number.isFinite(deduplicated[i].cog)) deduplicated[i].cog = bearing(deduplicated[i].lat, deduplicated[i].lon, deduplicated[i + 1].lat, deduplicated[i + 1].lon);
   }
@@ -179,12 +216,13 @@ function finalize(points) {
     qualityMeta: {
       ...qualityMeta,
       deduplicatedTimestamps: qualityMeta.duplicateTimestamps,
-      originalPointCount: validInInputOrder.length,
+      originalPointCount: timedInInputOrder.length,
+      discardedInvalidPositions,
     },
   };
 }
 
-export function parseCsv(text) {
+export function parseCsv(text, { now = new Date() } = {}) {
   const lines = text.replace(/^\uFEFF+/, '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   if (lines.length < 3) throw new Error('CSV vide ou incomplet.');
   const delimiter = detectDelimiter(lines[0]);
@@ -196,26 +234,36 @@ export function parseCsv(text) {
   const isAvalon = headerSet.has('sailset') || (headerSet.has('heading') && headerSet.has('latitude'));
   const isZezo = !isAvalon && headerSet.has(norm('DateHeure(UTC)')) && headerSet.has(norm('Voile')) && headerSet.has(norm('Speed(kt)'));
 
-  let year = new Date().getUTCFullYear();
+  let year = null;
+  let inferredYear = null;
   let previous = null;
+  let usedLocalAvalonTime = false;
   const points = [];
 
   for (const line of lines.slice(1)) {
     const row = splitCsvLine(line, delimiter);
     let time;
     if (isAvalon) {
-      time = parseAvalonDate(row[idx.time], year);
-      if (time && previous && time < previous && isProbableYearRollover(previous, time)) {
-        year += 1;
-        time = parseAvalonDate(row[idx.time], year);
+      const rawAvalonTime = clean(row[idx.time]);
+      const hasExplicitYear = /\d{4}/.test(rawAvalonTime);
+      if (year == null && !hasExplicitYear) {
+        year = inferClosestAvalonYear(rawAvalonTime, now);
+        inferredYear = year;
       }
+      time = parseAvalonDate(rawAvalonTime, year, now);
+      if (!hasExplicitYear) usedLocalAvalonTime = true;
+      if (time && previous && time < previous && isProbableYearRollover(previous, time)) {
+        year = (year ?? time.getFullYear()) + 1;
+        time = parseAvalonDate(rawAvalonTime, year, now);
+      }
+      if (time && year == null) year = time.getFullYear();
     } else {
       const rawTime = clean(row[idx.time]);
       const explicitUtc = isZezo && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?$/.test(rawTime)
         ? `${rawTime.replace(' ', 'T')}Z`
         : rawTime;
       const ms = Date.parse(explicitUtc);
-      time = Number.isNaN(ms) ? parseAvalonDate(row[idx.time], year) : new Date(ms);
+      time = Number.isNaN(ms) ? parseAvalonDate(row[idx.time], year, now) : new Date(ms);
     }
     if (!time) continue;
     previous = time;
@@ -233,7 +281,15 @@ export function parseCsv(text) {
       pressure: idx.pressure >= 0 ? num(row[idx.pressure]) : null,
     });
   }
-  return { source: isZezo ? 'ZEZO' : (isAvalon ? 'Avalon' : 'CSV routeur'), ...finalize(points) };
+  const finalized = finalize(points);
+  return {
+    source: isZezo ? 'ZEZO' : (isAvalon ? 'Avalon' : 'CSV routeur'),
+    ...finalized,
+    qualityMeta: {
+      ...finalized.qualityMeta,
+      ...(usedLocalAvalonTime ? { dateInterpretation: 'heure locale navigateur', inferredYear } : {}),
+    },
+  };
 }
 
 function directText(el, selector) {
@@ -329,6 +385,7 @@ export function parseGpx(text) {
 
 export function detectGpxSource({ creator = '', metaText = '', descSample = '', hasESailStructure = false } = {}) {
   const identity = `${creator} ${metaText} ${descSample}`;
+  if (/routemarins/i.test(identity)) return 'ZEZO';
   if (/dorado/i.test(identity)) return 'Dorado';
   if (/zezo/i.test(identity)) return 'ZEZO';
   if (/avalon/i.test(`${creator} ${descSample}`)) return 'Avalon';

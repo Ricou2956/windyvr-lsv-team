@@ -30,8 +30,11 @@ export function assessRouteQuality(route) {
   const largeGaps = gaps.filter(g => g > Math.max(6 * 3600000, median * 3)).length;
   if (largeGaps) issues.push(`${largeGaps} intervalle(s) temporel(s) important(s)`);
 
-  const invalidPosition = points.filter(p => !Number.isFinite(p.lat) || !Number.isFinite(p.lon) || Math.abs(p.lat) > 90 || Math.abs(p.lon) > 180).length;
-  if (invalidPosition) issues.push(`${invalidPosition} position(s) invalide(s)`);
+  const remainingInvalidPositions = points.filter(p => !Number.isFinite(p.lat) || !Number.isFinite(p.lon) || Math.abs(p.lat) > 90 || Math.abs(p.lon) > 180).length;
+  const discardedInvalidPositions = Number.isFinite(meta.discardedInvalidPositions) ? meta.discardedInvalidPositions : 0;
+  const invalidPosition = remainingInvalidPositions + discardedInvalidPositions;
+  if (discardedInvalidPositions) issues.push(`${discardedInvalidPositions} position(s) invalide(s) écartée(s) à l’import`);
+  if (remainingInvalidPositions) issues.push(`${remainingInvalidPositions} position(s) invalide(s) restante(s)`);
 
   const suspiciousSpeed = points.filter(p => Number.isFinite(p.sog) && (p.sog < 0 || p.sog > 45)).length;
   if (suspiciousSpeed) issues.push(`SOG suspecte sur ${suspiciousSpeed} point(s)`);

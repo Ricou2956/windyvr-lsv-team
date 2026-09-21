@@ -691,6 +691,8 @@
         };
         if (route.visible) createMapObjects(route);
         routes = [...routes, route];
+        const discardedInvalidPositions = Number(parsed.qualityMeta?.discardedInvalidPositions || 0);
+        if (discardedInvalidPositions > 0) message = `${file.name}: ${discardedInvalidPositions} position(s) invalide(s) écartée(s) à l’import.`;
       } catch (error) {
         message = `${file.name}: ${error.message}`;
       }

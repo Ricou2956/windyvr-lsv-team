@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {
   analyzeTemporalOrder,
+  detectGpxSource,
+  inferClosestAvalonYear,
   metersPerSecondToKnots,
   normalizeWindFields,
   parseCsv,
@@ -87,5 +89,57 @@ const avalonYearRollover = [
 const parsedAvalonYearRollover = parseCsv(avalonYearRollover);
 assert.equal(parsedAvalonYearRollover.points[1].time.getUTCFullYear(), parsedAvalonYearRollover.points[0].time.getUTCFullYear() + 1);
 assert.equal(parsedAvalonYearRollover.qualityMeta.reversedTimestamps, 0);
+
+
+const fixedNow = new Date(2026, 8, 21, 12, 0, 0);
+assert.equal(inferClosestAvalonYear('21/09 14:50', fixedNow), 2026);
+assert.equal(inferClosestAvalonYear('31/12 23:00', new Date(2026, 0, 2, 12, 0, 0)), 2025);
+
+const avalonLocalTime = [
+  'Date;Heading;Latitude;Longitude;Speed;TWS;TWD;TWA;SailSet',
+  '21/09 14:50;260;57.5;-8.7;9;19;210;50;Stay',
+  '21/09 15:00;260;57.49;-8.75;9;19;210;50;Stay',
+].join('\n');
+const parsedAvalonLocal = parseCsv(avalonLocalTime, { now: fixedNow });
+assert.equal(parsedAvalonLocal.points[0].time.getFullYear(), 2026);
+assert.equal(parsedAvalonLocal.points[0].time.getMonth(), 8);
+assert.equal(parsedAvalonLocal.points[0].time.getDate(), 21);
+assert.equal(parsedAvalonLocal.points[0].time.getHours(), 14);
+assert.equal(parsedAvalonLocal.points[0].time.getMinutes(), 50);
+assert.equal(parsedAvalonLocal.qualityMeta.dateInterpretation, 'heure locale navigateur');
+assert.equal(parsedAvalonLocal.qualityMeta.inferredYear, 2026);
+
+const avalonDecember = [
+  'Date;Heading;Latitude;Longitude;Speed;TWS;TWD;TWA;SailSet',
+  '31/12 23:00;180;48;-5;8;15;220;40;Jib',
+  '01/01 01:00;180;48.1;-5.1;8;15;220;40;Jib',
+].join('\n');
+const parsedAvalonDecember = parseCsv(avalonDecember, { now: new Date(2026, 0, 2, 12, 0, 0) });
+assert.equal(parsedAvalonDecember.points[0].time.getFullYear(), 2025);
+assert.equal(parsedAvalonDecember.points[1].time.getFullYear(), 2026);
+
+const currentDirCsv = [
+  'timestamp;lat;lon;Current Dir;sog',
+  '2026-09-21T00:00:00Z;48;-5;270;8',
+  '2026-09-21T01:00:00Z;48.1;-4.9;275;8',
+].join('\n');
+const parsedCurrentDir = parseCsv(currentDirCsv);
+assert.equal(parsedCurrentDir.points[0].currentDir, 270);
+assert.notEqual(Math.round(parsedCurrentDir.points[0].cog), 270);
+
+const invalidCoordinatesCsv = [
+  'timestamp;lat;lon;sog',
+  '2026-09-21T00:00:00Z;48;-5;8',
+  '2026-09-21T00:30:00Z;952;400;8',
+  '2026-09-21T01:00:00Z;48.1;-4.9;8',
+].join('\n');
+const parsedInvalidCoordinates = parseCsv(invalidCoordinatesCsv);
+assert.equal(parsedInvalidCoordinates.points.length, 2);
+assert.equal(parsedInvalidCoordinates.qualityMeta.originalPointCount, 3);
+assert.equal(parsedInvalidCoordinates.qualityMeta.discardedInvalidPositions, 1);
+assert.equal(parsedInvalidCoordinates.points.some(point => Math.abs(point.lat) > 90 || Math.abs(point.lon) > 180), false);
+
+assert.equal(detectGpxSource({ creator: 'RouteMarins', metaText: 'RouteMarins' }), 'ZEZO');
+assert.equal(detectGpxSource({ creator: 'MapSource', metaText: 'VRZEN', descSample: 'HDG:260 TWA:-50' }), 'VRZen');
 
 console.log('import normalization tests: OK');

@@ -24,4 +24,13 @@ const reversedQuality = assessRouteQuality(reversedSource);
 assert.equal(reversedQuality.level, 'red');
 assert.deepEqual(reversedQuality.issues, ['1 date(s) inversée(s) dans le fichier source']);
 
+
+const sanitizedInvalid = {
+  qualityMeta: { duplicateTimestamps: 0, reversedTimestamps: 0, discardedInvalidPositions: 1 },
+  points: [{ time: new Date(0), lat: 1, lon: 1, sog: 10, tws: 12 }, { time: new Date(3600000), lat: 2, lon: 2, sog: 11, tws: 13 }],
+};
+const sanitizedInvalidQuality = assessRouteQuality(sanitizedInvalid);
+assert.equal(sanitizedInvalidQuality.level, 'red');
+assert.deepEqual(sanitizedInvalidQuality.issues, ['1 position(s) invalide(s) écartée(s) à l’import']);
+
 console.log('route quality tests: OK');

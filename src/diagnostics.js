@@ -203,7 +203,10 @@ function routeDiagnostics(route, routeIndex) {
     reversedTimestamps,
     deduplicatedTimestamps: Number.isFinite(route?.qualityMeta?.deduplicatedTimestamps) ? route.qualityMeta.deduplicatedTimestamps : 0,
     originalPointCount: Number.isFinite(route?.qualityMeta?.originalPointCount) ? route.qualityMeta.originalPointCount : points.length,
-    invalidPositions,
+    invalidPositions: invalidPositions + (Number.isFinite(route?.qualityMeta?.discardedInvalidPositions) ? route.qualityMeta.discardedInvalidPositions : 0),
+    discardedInvalidPositions: Number.isFinite(route?.qualityMeta?.discardedInvalidPositions) ? route.qualityMeta.discardedInvalidPositions : 0,
+    dateInterpretation: route?.qualityMeta?.dateInterpretation || null,
+    inferredYear: Number.isFinite(route?.qualityMeta?.inferredYear) ? route.qualityMeta.inferredYear : null,
     fieldCoveragePercent: fieldCoverage,
   };
 }
