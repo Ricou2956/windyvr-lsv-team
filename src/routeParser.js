@@ -163,13 +163,43 @@ function directText(el, selector) {
   return el.querySelector(selector)?.textContent?.trim() || null;
 }
 
-function parseDesc(desc) {
-  const s = desc || '';
-  let m = s.match(/COG\s*=\s*([-+\d.,]+).*?SOG\s*=\s*([-+\d.,]+).*?TWS\s*=\s*([-+\d.,]+).*?TWA\s*=\s*([-+\d.,]+).*?SAIL\s*=\s*([\w-]+)/i);
-  if (m) return { cog: num(m[1]), sog: num(m[2]), tws: num(m[3]), twa: num(m[4]), sail: m[5] };
-  m = s.match(/HDG:\s*([-+\d.,]+)\s+TWA:\s*([-+\d.,]+)\s+(.+?)\s+SOG:\s*([-+\d.,]+)\s*kt\s+TWS:\s*([-+\d.,]+)\s*kt/i);
-  if (m) return { cog: num(m[1]), twa: num(m[2]), sail: clean(m[3]), sog: num(m[4]), tws: num(m[5]) };
-  return {};
+function extractLabeledNumber(text, labels) {
+  const labelPattern = labels.map(label => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const match = String(text || '').match(new RegExp(`\\b(?:${labelPattern})\\s*[:=]\\s*([-+]?\\d+(?:[.,]\\d+)?)`, 'i'));
+  return match ? num(match[1]) : null;
+}
+
+export function parseRouteDescription(desc) {
+  const s = String(desc || '').trim();
+  if (!s) return {};
+
+  const cog = extractLabeledNumber(s, ['COG', 'HDG']);
+  const sog = extractLabeledNumber(s, ['SOG']);
+  const tws = extractLabeledNumber(s, ['TWS']);
+  const twd = extractLabeledNumber(s, ['TWD']);
+  const twa = extractLabeledNumber(s, ['TWA']);
+
+  let sail = null;
+  const explicitSail = s.match(/\bSAIL\s*[:=]\s*(.+?)(?=\s+(?:COG|HDG|SOG|TWS|TWD|TWA)\s*[:=]|$)/i);
+  if (explicitSail) sail = clean(explicitSail[1]);
+  if (!sail) {
+    const betweenTwaAndSog = s.match(/\bTWA\s*[:=]\s*[-+]?\d+(?:[.,]\d+)?\s*°?\s+(.+?)\s+SOG\s*[:=]/i);
+    if (betweenTwaAndSog) sail = clean(betweenTwaAndSog[1]);
+  }
+
+  const parsed = {};
+  if (cog != null) parsed.cog = cog;
+  if (sog != null) parsed.sog = sog;
+  if (tws != null) parsed.tws = tws;
+  if (twd != null) parsed.twd = twd;
+  if (twa != null) parsed.twa = twa;
+  if (sail) parsed.sail = sail;
+  return parsed;
+}
+
+export function metersPerSecondToKnots(value) {
+  const speed = num(value);
+  return speed == null ? null : speed * 1.94384;
 }
 
 function findExtensionNumber(el, names) {
@@ -193,16 +223,16 @@ export function parseGpx(text) {
   if (!pointsEls.length) throw new Error('Aucun waypoint/routepoint/trackpoint dans ce GPX.');
 
   const points = pointsEls.map(el => {
-    const desc = parseDesc(directText(el, 'desc'));
+    const desc = parseRouteDescription(directText(el, 'desc'));
     const timeText = directText(el, 'time');
     const ms = timeText ? Date.parse(timeText) : NaN;
     return {
       time: Number.isNaN(ms) ? null : new Date(ms),
       lat: num(el.getAttribute('lat')), lon: num(el.getAttribute('lon')),
       cog: desc.cog ?? findExtensionNumber(el, ['cog', 'cog_deg', 'course', 'heading', 'hdg']),
-      sog: desc.sog ?? findExtensionNumber(el, ['sog', 'sog_kn', 'speed']),
+      sog: desc.sog ?? findExtensionNumber(el, ['sog', 'sog_kn']) ?? metersPerSecondToKnots(findExtensionNumber(el, ['speed'])),
       tws: desc.tws ?? findExtensionNumber(el, ['tws', 'tws_kn', 'windspeed']),
-      twd: findExtensionNumber(el, ['twd', 'twd_deg', 'winddir', 'winddirection']),
+      twd: desc.twd ?? findExtensionNumber(el, ['twd', 'twd_deg', 'winddir', 'winddirection']),
       twa: angle180(desc.twa ?? findExtensionNumber(el, ['twa', 'windangle'])),
       sail: normalizeSail(desc.sail ?? directText(el, 'type') ?? null),
       currentSpeed: findExtensionNumber(el, ['currentspeed', 'current_speed_kn', 'current speed']),
