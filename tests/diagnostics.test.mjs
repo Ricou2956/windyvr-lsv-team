@@ -7,6 +7,7 @@ import {
   recordWeatherCall,
   recordWeatherRequest,
   recordWeatherResponse,
+  recordWeatherSeriesUse,
   recordWeatherUnavailable,
   resetDiagnostics,
   startAnalysisDiagnostics,
@@ -19,6 +20,7 @@ startAnalysisDiagnostics({
   sampleCounts: [{ routeIndex: 1, source: 'Avalon', count: 1 }],
 });
 recordWeatherCall('ecmwf');
+recordWeatherSeriesUse('ecmwf', 'ecmwf:48.123:-5.123');
 recordWeatherCacheMiss('ecmwf');
 recordWeatherRequest('ecmwf');
 recordWeatherResponse('ecmwf', {
@@ -28,7 +30,12 @@ recordWeatherResponse('ecmwf', {
 });
 recordWeatherUnavailable('ecmwf');
 recordWeatherCall('gfs');
-recordWeatherCacheHit('gfs');
+recordWeatherSeriesUse('gfs', 'gfs:48.123:-5.123');
+recordWeatherCacheHit('gfs', {
+  sampleCount: 4,
+  startTimestamp: Date.parse('2026-09-18T00:00:00Z'),
+  endTimestamp: Date.parse('2026-09-22T00:00:00Z'),
+});
 finishAnalysisDiagnostics('done');
 
 const route = {
@@ -42,10 +49,13 @@ const route = {
   ],
 };
 const report = buildDiagnosticsReport({ pluginVersion: '1.1.0', routes: [route], routeAnalysis: [] });
-assert.equal(report.schemaVersion, 1);
+assert.equal(report.schemaVersion, 2);
 assert.equal(report.analysisRun.status, 'done');
 assert.equal(report.analysisRun.weather.networkRequests, 1);
 assert.equal(report.analysisRun.weather.cacheHits, 1);
+assert.equal(report.analysisRun.weather.uniqueSeriesPositionModelPairs, 2);
+assert.equal(report.analysisRun.weather.byModel.ecmwf.uniqueSeriesPositions, 1);
+assert.equal(report.analysisRun.weather.byModel.gfs.seriesEndMinUtc, '2026-09-22T00:00:00.000Z');
 assert.equal(report.session.weather.byModel.ecmwf.seriesEndMinUtc, '2026-09-22T00:00:00.000Z');
 assert.equal(report.routes[0].pointCount, 2);
 assert.equal(report.routes[0].duplicateTimestamps, 1);

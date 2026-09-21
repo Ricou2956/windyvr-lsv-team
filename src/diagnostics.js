@@ -1,4 +1,4 @@
-export const DIAGNOSTICS_SCHEMA_VERSION = 1;
+export const DIAGNOSTICS_SCHEMA_VERSION = 2;
 
 function emptyModelStats() {
   return {
@@ -15,6 +15,7 @@ function emptyModelStats() {
     seriesStartMax: null,
     seriesEndMin: null,
     seriesEndMax: null,
+    seriesKeys: new Set(),
   };
 }
 
@@ -82,8 +83,16 @@ export function recordWeatherCall(model) {
   forWeatherTargets(stats => updateCounter(stats, model, 'calls'));
 }
 
-export function recordWeatherCacheHit(model) {
-  forWeatherTargets(stats => updateCounter(stats, model, 'cacheHits'));
+export function recordWeatherCacheHit(model, { sampleCount, startTimestamp, endTimestamp } = {}) {
+  forWeatherTargets(stats => {
+    updateCounter(stats, model, 'cacheHits');
+    updateSeriesWindow(stats, model, Number(sampleCount), Number(startTimestamp), Number(endTimestamp));
+  });
+}
+
+export function recordWeatherSeriesUse(model, key) {
+  if (!key) return;
+  forWeatherTargets(stats => modelStats(stats, model).seriesKeys.add(String(key)));
 }
 
 export function recordWeatherCacheMiss(model) {
@@ -243,6 +252,19 @@ function routeAnalysisDiagnostics(item, routeIndex) {
     riskEventCounts: counts,
     firstCoveredUtc: coveredEvents.length ? new Date(coveredEvents[0].timestamp).toISOString() : null,
     lastCoveredUtc: coveredEvents.length ? new Date(coveredEvents.at(-1).timestamp).toISOString() : null,
+    analysisWindow: item?.coverageWindow ? {
+      firstCoveredUtc: Number.isFinite(item.coverageWindow.firstCovered) ? new Date(item.coverageWindow.firstCovered).toISOString() : null,
+      lastCoveredUtc: Number.isFinite(item.coverageWindow.lastCovered) ? new Date(item.coverageWindow.lastCovered).toISOString() : null,
+      temporalCoveragePercent: Number.isFinite(item.coverageWindow.temporalCoveragePercent) ? Number(item.coverageWindow.temporalCoveragePercent.toFixed(1)) : 0,
+      sampleCoveragePercent: Number.isFinite(item.coverageWindow.sampleCoveragePercent) ? Number(item.coverageWindow.sampleCoveragePercent.toFixed(1)) : 0,
+      distanceCoveragePercent: Number.isFinite(item.coverageWindow.distanceCoveragePercent) ? Number(item.coverageWindow.distanceCoveragePercent.toFixed(1)) : 0,
+      coveredDistanceNm: Number.isFinite(item.coverageWindow.coveredDistanceNm) ? Number(item.coverageWindow.coveredDistanceNm.toFixed(1)) : 0,
+      totalDistanceNm: Number.isFinite(item.coverageWindow.totalDistanceNm) ? Number(item.coverageWindow.totalDistanceNm.toFixed(1)) : 0,
+      complete: Boolean(item.coverageWindow.complete),
+      limitingReason: item.coverageWindow.limitingReason || null,
+      requestedSamples: item.coverageWindow.requestedSamples || 0,
+      coveredSamples: item.coverageWindow.coveredSamples || 0,
+    } : null,
   };
 }
 
@@ -262,6 +284,7 @@ function normalizeWeatherStats(weather) {
   for (const [model, value] of Object.entries(weather.byModel || {})) {
     result.byModel[model] = {
       ...value,
+      uniqueSeriesPositions: value.seriesKeys instanceof Set ? value.seriesKeys.size : 0,
       seriesStartMinUtc: Number.isFinite(value.seriesStartMin) ? new Date(value.seriesStartMin).toISOString() : null,
       seriesStartMaxUtc: Number.isFinite(value.seriesStartMax) ? new Date(value.seriesStartMax).toISOString() : null,
       seriesEndMinUtc: Number.isFinite(value.seriesEndMin) ? new Date(value.seriesEndMin).toISOString() : null,
@@ -271,7 +294,9 @@ function normalizeWeatherStats(weather) {
     delete result.byModel[model].seriesStartMax;
     delete result.byModel[model].seriesEndMin;
     delete result.byModel[model].seriesEndMax;
+    delete result.byModel[model].seriesKeys;
   }
+  result.uniqueSeriesPositionModelPairs = Object.values(result.byModel).reduce((sum, value) => sum + (value.uniqueSeriesPositions || 0), 0);
   return result;
 }
 

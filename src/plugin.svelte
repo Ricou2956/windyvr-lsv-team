@@ -126,10 +126,11 @@
         {#if analysisStatus === 'error'}<p class="analysis-error">L’analyse n’a pas pu être terminée. Réessayez dans quelques instants.</p>{/if}
         {#if routeAnalysis.length}
           <div class="analysis-table-scroll"><table class="analysis-table full-weather-table">
-            <thead><tr><th>Route</th>{#each MODELS as model}<th>{model.label}<br><small>moy./max · couverture</small></th>{/each}<th>Divergence maximale</th></tr></thead>
+            <thead><tr><th>Route</th>{#each MODELS as model}<th>{model.label}<br><small>moy./max · couverture</small></th>{/each}<th>Fenêtre réellement analysée</th><th>Divergence maximale</th></tr></thead>
             <tbody>{#each routeAnalysis as item}<tr>
               <td><span class="dot small" style={`background:${item.color}`}></span>{item.label}<br><small>{item.sampleCount} positions</small></td>
               {#each MODELS as model}<td>{weatherAnalysisModel(item.summary.byModel[model.id], item.sampleCount)}</td>{/each}
+              <td>{analysisWindowLabel(item.coverageWindow)}</td>
               <td>{criticalSummary(item.summary.critical)}</td>
             </tr>{/each}</tbody>
           </table></div>
@@ -138,7 +139,7 @@
         {/if}
       </section>
 
-      <footer class="analysis-foot">Les heures de navigation sont locales. Les cycles météo restent exprimés en Z. Une couverture partielle signifie qu’un modèle ne fournit pas l’échéance demandée ou qu’une requête a échoué.</footer>
+      <footer class="analysis-foot">Les heures de navigation sont locales. Les cycles météo restent exprimés en Z. La fenêtre analysée indique explicitement la période et la distance réellement couvertes par au moins deux modèles. « Horizon météo atteint » signifie que la série reçue de Windy ne couvre plus l’échéance demandée ; une erreur réseau est signalée séparément.</footer>
     </div>
   </div>
 {/if}
@@ -159,7 +160,7 @@
             <article class="visual-route risk-{routeRisk(item).level}">
               <header><strong>{item.label}</strong><span>{routeRisk(item).label}</span></header>
               <div class="risk-meter"><i style={`width:${routeRisk(item).score}%`}></i></div>
-              <p>{routeRisk(item).detail}</p><small>ETA {item.eta} · {item.etaGap} · qualité {qualityLabel(item.quality)}</small>
+              <p>{routeRisk(item).detail}</p><small>ETA {item.eta} · {item.etaGap} · qualité {qualityLabel(item.quality)}<br>{analysisWindowLabel(item.coverageWindow)}</small>
             </article>
           {/each}
         </div>
@@ -183,12 +184,12 @@
   import { onDestroy, onMount } from 'svelte';
   import config from './pluginConfig.ts';
   import { formatLocalDateTime } from './dateTime.js';
-  import { buildRiskEvents, buildSampleTimes, summarizeWeatherSamples } from './analysisUtils.js';
+  import { buildRiskEvents, buildSampleTimes, summarizeCoverageWindow, summarizeRouteDistanceWindow, summarizeWeatherSamples } from './analysisUtils.js';
   import { assessRouteQuality } from './qualityUtils.js';
   import {
     buildDiagnosticsReport, finishAnalysisDiagnostics, recordWeatherCacheHit, recordWeatherCacheMiss,
     recordWeatherCall, recordWeatherError, recordWeatherRequest, recordWeatherResponse,
-    recordWeatherUnavailable, startAnalysisDiagnostics,
+    recordWeatherSeriesUse, recordWeatherUnavailable, startAnalysisDiagnostics,
   } from './diagnostics.js';
   import { parseRouteFile } from './routeParser';
   import { interpolateRoute } from './timeUtils';
@@ -278,6 +279,15 @@
   function weatherAnalysisModel(value, expected) {
     if (!value?.coverage) return `n/a · 0/${expected}`;
     return `${value.avgTws.toFixed(1)} / ${value.maxTws.toFixed(1)} kt · ${value.coverage}/${expected}`;
+  }
+
+  function analysisWindowLabel(window) {
+    if (!window?.firstCovered || !window?.lastCovered) return 'non analysable';
+    const span = `${formatLocalDateTime(window.firstCovered)} → ${formatLocalDateTime(window.lastCovered)}`;
+    const distance = `${Math.round(window.coveredDistanceNm || 0)} / ${Math.round(window.totalDistanceNm || 0)} nm`;
+    if (window.complete) return `${span} · 100 % · ${distance}`;
+    const reason = window.limitingReason === 'outside-horizon' ? 'horizon météo atteint' : window.limitingReason === 'weather-error' ? 'erreur météo' : 'couverture partielle';
+    return `${span} · ${Math.round(window.temporalCoveragePercent || 0)} % · ${distance} · ${reason}`;
   }
 
   function criticalSummary(value) {
@@ -480,10 +490,15 @@
   async function loadOneWeather(model, position, timestamp) {
     recordWeatherCall(model);
     const key = seriesCacheKey(model, position);
+    recordWeatherSeriesUse(model, key);
     let samples = weatherSeriesCache.get(key);
 
     if (samples) {
-      recordWeatherCacheHit(model);
+      recordWeatherCacheHit(model, {
+        sampleCount: samples.length,
+        startTimestamp: samples[0]?.timestamp,
+        endTimestamp: samples.at(-1)?.timestamp,
+      });
     } else {
       recordWeatherCacheMiss(model);
       try {
@@ -572,7 +587,11 @@
         const batch = jobs.slice(i, i + 4);
         const values = await Promise.all(batch.map(async job => {
           const value = await loadOneWeather(job.model, job.position, job.timestamp);
-          return { routeId: job.routeId, timestamp: job.timestamp, model: job.model, tws: value.tws, twd: value.twd };
+          return {
+            routeId: job.routeId, timestamp: job.timestamp, model: job.model,
+            tws: value.tws, twd: value.twd, unavailable: Boolean(value.unavailable), error: Boolean(value.error),
+            reason: value.reason || null, horizonStart: value.horizonStart ?? null, horizonEnd: value.horizonEnd ?? null,
+          };
         }));
         samples.push(...values);
         analysisProgress = Math.round(Math.min(jobs.length, i + batch.length) / jobs.length * 100);
@@ -582,10 +601,13 @@
       routeAnalysis = selectedRoutes.map(route => {
         const routeSamples = samples.filter(s => s.routeId === route.id);
         const etaMs = route.points.at(-1).time.getTime();
+        const routeStartMs = route.points[0].time.getTime();
+        const coverageWindow = summarizeCoverageWindow(routeSamples, routeStartMs, etaMs, MODELS.map(m => m.id));
+        Object.assign(coverageWindow, summarizeRouteDistanceWindow(route.points, coverageWindow.firstCovered, coverageWindow.lastCovered));
         return {
           routeId: route.id, source: route.source, label: routeLabel(route), color: route.color,
           sampleCount: sampleCounts.get(route.id), eta: formatLocalDateTime(etaMs), etaGap: etaMs === earliestEta ? 'ETA la plus tôt' : `+${fmtEtaDelta(etaMs - earliestEta)}`,
-          quality: assessRouteQuality(route),
+          quality: assessRouteQuality(route), coverageWindow,
           summary: summarizeWeatherSamples(routeSamples, MODELS.map(m => m.id)), riskEvents: buildRiskEvents(routeSamples),
         };
       });
