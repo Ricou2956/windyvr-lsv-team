@@ -6,18 +6,27 @@ $PowerShell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
 $DebutScript = Join-Path $Repo "scripts\windows\WINDYVR-Debut-Travail.ps1"
 $FinScript   = Join-Path $Repo "scripts\windows\WINDYVR-Fin-Travail.ps1"
 
+$DebutIcon = Join-Path $Repo "03_ASSETS\Icones\WINDYVR-Debut-Travail.ico"
+$FinIcon   = Join-Path $Repo "03_ASSETS\Icones\WINDYVR-Fin-Travail.ico"
+
 $Shell = New-Object -ComObject WScript.Shell
 
 $Shortcut = $Shell.CreateShortcut((Join-Path $Desktop "WINDYVR - DEBUT TRAVAIL.lnk"))
 $Shortcut.TargetPath = $PowerShell
 $Shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$DebutScript`""
 $Shortcut.WorkingDirectory = $Repo
+if (Test-Path $DebutIcon) {
+    $Shortcut.IconLocation = "$DebutIcon,0"
+}
 $Shortcut.Save()
 
 $Shortcut = $Shell.CreateShortcut((Join-Path $Desktop "WINDYVR - FIN TRAVAIL.lnk"))
 $Shortcut.TargetPath = $PowerShell
 $Shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$FinScript`""
 $Shortcut.WorkingDirectory = $Repo
+if (Test-Path $FinIcon) {
+    $Shortcut.IconLocation = "$FinIcon,0"
+}
 $Shortcut.Save()
 
 Write-Host ""
