@@ -179,7 +179,6 @@
   import bcast from '@windy/broadcast';
   import { map } from '@windy/map';
   import store from '@windy/store';
-  import metrics from '@windy/metrics';
   import { getPointForecastData } from '@windy/fetch';
   import { onDestroy, onMount } from 'svelte';
   import config from './pluginConfig.ts';
@@ -191,15 +190,16 @@
     recordWeatherCall, recordWeatherError, recordWeatherRequest, recordWeatherResponse,
     recordWeatherUnavailable, startAnalysisDiagnostics,
   } from './diagnostics.js';
-  import { parseRouteFile, signedAngle } from './routeParser';
-  import { interpolateRoute, interpolateForecast } from './timeUtils';
+  import { parseRouteFile } from './routeParser';
+  import { interpolateRoute } from './timeUtils';
+  import { forecastValueAt, normalizeForecastSeries } from './weatherAdapter.js';
 
   const { title } = config;
   const MAX_ROUTES = 6;
   const MAX_VISIBLE_ROUTES = 4;
   const MODELS = [{ id: 'ecmwf', label: 'ECMWF' }, { id: 'gfs', label: 'GFS' }, { id: 'icon', label: 'ICON' }];
   const COLORS = ['#ff8a00', '#19b5e5', '#59d34f', '#e53935', '#a66ee0', '#f2c94c'];
-  const weatherCache = new Map();
+  const weatherSeriesCache = new Map();
   let routes = [];
   let currentTimestamp = store.get('timestamp');
   let message = '';
@@ -261,7 +261,10 @@
 
   function modelSummary(w) {
     if (!w) return '…';
-    if (w.error || !Number.isFinite(w.tws) || !Number.isFinite(w.twd) || !Number.isFinite(w.twa)) return 'n/a';
+    if (w.reason === 'route-out-of-range') return 'hors plage';
+    if (w.unavailable) return 'hors horizon';
+    if (w.error) return 'erreur météo';
+    if (!Number.isFinite(w.tws) || !Number.isFinite(w.twd) || !Number.isFinite(w.twa)) return 'n/a';
     return `TWS ${w.tws.toFixed(1)}\nTWD ${Math.round(w.twd)}°\nTWA ${Math.round(w.twa)}°`;
   }
 
@@ -470,122 +473,53 @@
     routes = [...routes];
   }
 
-  function cacheKey(model, p, ts) {
-    const hour = Math.round(ts / 3600000);
-    return `${model}:${p.lat.toFixed(3)}:${p.lon.toFixed(3)}:${hour}`;
-  }
-
-  function angleDiff(windDirection, course) {
-    if (!Number.isFinite(Number(windDirection)) || !Number.isFinite(Number(course))) return null;
-    let d = ((Number(windDirection) - Number(course) + 540) % 360) - 180;
-    return Math.round(d);
+  function seriesCacheKey(model, position) {
+    return `${model}:${position.lat.toFixed(3)}:${position.lon.toFixed(3)}`;
   }
 
   async function loadOneWeather(model, position, timestamp) {
     recordWeatherCall(model);
-    const cacheKey = `${model}:${position.lat.toFixed(3)}:${position.lon.toFixed(3)}:${Math.round(timestamp / 1800000)}`;
-    if (weatherCache.has(cacheKey)) {
-      const cached = weatherCache.get(cacheKey);
+    const key = seriesCacheKey(model, position);
+    let samples = weatherSeriesCache.get(key);
+
+    if (samples) {
       recordWeatherCacheHit(model);
-      if (cached?.unavailable) recordWeatherUnavailable(model);
-      return cached;
-    }
-    recordWeatherCacheMiss(model);
-
-    try {
-      recordWeatherRequest(model);
-      const raw = await getPointForecastData(model, { lat: position.lat, lon: position.lon });
-
-      // Windy plugin API responses have existed in more than one wrapper shape.
-      // Normalize the known variants instead of assuming result.data.data.
-      const payload =
-        raw?.data?.data ??
-        raw?.data ??
-        raw?.result?.data?.data ??
-        raw?.result?.data ??
-        raw?.result ??
-        raw;
-
-      if (!payload) throw new Error("Réponse météo vide");
-
-      const ts = payload.ts ?? payload.timestamps;
-      const wind = payload.wind ?? payload.windSpeed ?? payload.wind_speed;
-      const windDir = payload.windDir ?? payload.windDirection ?? payload.wind_dir;
-
-      if (!Array.isArray(ts) || !Array.isArray(wind) || !Array.isArray(windDir)) {
-        console.warn(`[WindyVR LSV Team] ${model} structure météo inattendue`, raw);
-        throw new Error("Structure météo non reconnue");
-      }
-
-      const samples = ts.map((t, i) => ({
-        timestamp: Number(t),
-        speed: Number(wind[i]),
-        direction: Number(windDir[i]),
-      })).filter((p) => Number.isFinite(p.timestamp) && Number.isFinite(p.speed) && Number.isFinite(p.direction));
-
-      if (!samples.length) throw new Error("Aucun échantillon météo exploitable");
-      recordWeatherResponse(model, {
-        sampleCount: samples.length,
-        startTimestamp: samples[0].timestamp,
-        endTimestamp: samples.at(-1).timestamp,
-      });
-
-      // Linear interpolation is sufficient for the point forecast display and
-      // avoids doing work for every route waypoint.
-      if (timestamp < samples[0].timestamp || timestamp > samples[samples.length - 1].timestamp) {
-        recordWeatherUnavailable(model);
-        const unavailable = { model, tws: null, twd: null, twa: null, unavailable: true };
-        weatherCache.set(cacheKey, unavailable);
-        return unavailable;
-      }
-
-      let sample;
-      if (timestamp === samples[0].timestamp) {
-        sample = samples[0];
-      } else if (timestamp === samples[samples.length - 1].timestamp) {
-        sample = samples[samples.length - 1];
-      } else {
-        let lo = 0, hi = samples.length - 1;
-        while (hi - lo > 1) {
-          const mid = (lo + hi) >> 1;
-          if (samples[mid].timestamp <= timestamp) lo = mid;
-          else hi = mid;
-        }
-        const a = samples[lo], b = samples[hi];
-        const f = (timestamp - a.timestamp) / (b.timestamp - a.timestamp);
-        // Interpolate direction through the shortest angular path.
-        let delta = ((b.direction - a.direction + 540) % 360) - 180;
-        sample = {
-          timestamp,
-          speed: a.speed + (b.speed - a.speed) * f,
-          direction: (a.direction + delta * f + 360) % 360,
-        };
-      }
-
-      let tws = sample.speed;
+    } else {
+      recordWeatherCacheMiss(model);
       try {
-        const converted = metrics?.wind?.convertValue?.(sample.speed, " ");
-        if (converted != null) {
-          const parsed = parseFloat(String(converted).replace(",", "."));
-          if (Number.isFinite(parsed)) tws = parsed;
-        }
-      } catch (_) {}
-
-      const result = {
-        model,
-        tws,
-        twd: Math.round(sample.direction),
-        twa: angleDiff(sample.direction, position.cog),
-      };
-
-      weatherCache.set(cacheKey, result);
-      if (weatherCache.size > 500) weatherCache.delete(weatherCache.keys().next().value);
-      return result;
-    } catch (error) {
-      recordWeatherError(model);
-      console.error(`[WindyVR LSV Team] ${model}`, error);
-      return { model, tws: null, twd: null, twa: null };
+        recordWeatherRequest(model);
+        const raw = await getPointForecastData(model, { lat: position.lat, lon: position.lon });
+        samples = normalizeForecastSeries(raw);
+        recordWeatherResponse(model, {
+          sampleCount: samples.length,
+          startTimestamp: samples[0].timestamp,
+          endTimestamp: samples.at(-1).timestamp,
+        });
+        weatherSeriesCache.set(key, samples);
+        if (weatherSeriesCache.size > 500) weatherSeriesCache.delete(weatherSeriesCache.keys().next().value);
+      } catch (error) {
+        recordWeatherError(model);
+        console.error(`[WindyVR LSV Team] ${model}`, error);
+        return { model, tws: null, twd: null, twa: null, error: true, reason: 'request-or-format-error' };
+      }
     }
+
+    const value = forecastValueAt(samples, timestamp, position.cog);
+    if (!value) {
+      recordWeatherUnavailable(model);
+      return {
+        model,
+        tws: null,
+        twd: null,
+        twa: null,
+        unavailable: true,
+        reason: 'outside-horizon',
+        horizonStart: samples[0].timestamp,
+        horizonEnd: samples.at(-1).timestamp,
+      };
+    }
+
+    return { model, ...value };
   }
 
   async function refreshWeather() {
@@ -594,7 +528,10 @@
     const jobs = [];
     for (const route of routes) {
       const p = route.position;
-      if (!p || p.outOfRange) { route.weather = {}; continue; }
+      if (!p || p.outOfRange) {
+        route.weather = Object.fromEntries(MODELS.map(model => [model.id, { model: model.id, unavailable: true, reason: 'route-out-of-range' }]));
+        continue;
+      }
       route.weather = route.weather || {};
       for (const model of MODELS) {
         jobs.push(loadOneWeather(model.id, p, ts).then(value => ({ routeId: route.id, model: model.id, value })));
@@ -736,7 +673,7 @@
     store.off('timestamp', onTimestamp);
     routes.forEach(destroyMapObjects);
     routes = [];
-    weatherCache.clear();
+    weatherSeriesCache.clear();
   });
 </script>
 

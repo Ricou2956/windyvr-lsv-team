@@ -43,24 +43,3 @@ export function interpolateRoute(points, timestamp) {
     exact: false, outOfRange: false,
   };
 }
-
-export function interpolateForecast(payload, timestamp) {
-  const data = payload?.data?.data;
-  if (!data?.day || !data?.hour || !data?.wind || !data?.windDir) return null;
-  const samples = data.day.map((day, i) => ({
-    ts: Date.parse(`${day}T${String(data.hour[i]).padStart(2, '0')}:00:00Z`),
-    wind: Number(data.wind[i]), dir: Number(data.windDir[i]),
-  })).filter(x => Number.isFinite(x.ts) && Number.isFinite(x.wind) && Number.isFinite(x.dir));
-  if (!samples.length) return null;
-  const ts = Number(timestamp);
-  if (ts <= samples[0].ts) return samples[0];
-  if (ts >= samples.at(-1).ts) return samples.at(-1);
-  let lo = 0, hi = samples.length - 1;
-  while (lo + 1 < hi) {
-    const mid = (lo + hi) >> 1;
-    if (samples[mid].ts <= ts) lo = mid; else hi = mid;
-  }
-  const a = samples[lo], b = samples[hi];
-  const f = (ts - a.ts) / (b.ts - a.ts || 1);
-  return { ts, wind: linear(a.wind, b.wind, f), dir: circularLerp(a.dir, b.dir, f) };
-}
