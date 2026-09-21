@@ -115,9 +115,12 @@
       <section class="analysis-section full-weather">
         <div class="full-weather-head">
           <div><h3>Analyse ECMWF / GFS / ICON le long des routes</h3><p>Pas adaptatif de 30 min à 12 h, complété aux changements importants de route.</p></div>
-          <button class="button button--variant-orange" disabled={analysisStatus === 'running'} on:click={runFullWeatherAnalysis}>
-            {analysisStatus === 'running' ? `Analyse ${analysisProgress}%` : analysisStatus === 'done' ? 'Actualiser' : 'Lancer l’analyse'}
-          </button>
+          <div class="full-weather-actions">
+            <button class="button" disabled={analysisStatus === 'running' || !routes.length} on:click={exportDiagnostics}>Diagnostic JSON</button>
+            <button class="button button--variant-orange" disabled={analysisStatus === 'running'} on:click={runFullWeatherAnalysis}>
+              {analysisStatus === 'running' ? `Analyse ${analysisProgress}%` : analysisStatus === 'done' ? 'Actualiser' : 'Lancer l’analyse'}
+            </button>
+          </div>
         </div>
         {#if analysisStatus === 'running'}<div class="progress"><i style={`width:${analysisProgress}%`}></i></div>{/if}
         {#if analysisStatus === 'error'}<p class="analysis-error">L’analyse n’a pas pu être terminée. Réessayez dans quelques instants.</p>{/if}
@@ -183,6 +186,11 @@
   import { formatLocalDateTime } from './dateTime.js';
   import { buildRiskEvents, buildSampleTimes, summarizeWeatherSamples } from './analysisUtils.js';
   import { assessRouteQuality } from './qualityUtils.js';
+  import {
+    buildDiagnosticsReport, finishAnalysisDiagnostics, recordWeatherCacheHit, recordWeatherCacheMiss,
+    recordWeatherCall, recordWeatherError, recordWeatherRequest, recordWeatherResponse,
+    recordWeatherUnavailable, startAnalysisDiagnostics,
+  } from './diagnostics.js';
   import { parseRouteFile, signedAngle } from './routeParser';
   import { interpolateRoute, interpolateForecast } from './timeUtils';
 
@@ -332,6 +340,26 @@
     popup.document.open(); popup.document.write(html); popup.document.close();
   }
 
+  function exportDiagnostics() {
+    try {
+      const report = buildDiagnosticsReport({ pluginVersion: config.version, routes, routeAnalysis });
+      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      link.href = url;
+      link.download = `windyvr-diagnostic-v${config.version}-${stamp}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      message = 'Diagnostic JSON généré localement.';
+    } catch (error) {
+      console.error('[WindyVR LSV Team] export diagnostic', error);
+      message = 'Impossible de générer le diagnostic.';
+    }
+  }
+
   function haversineNm(a, b) {
     const rad = d => d * Math.PI / 180, r = 3440.065;
     const p1 = rad(a.lat), p2 = rad(b.lat), dp = p2 - p1, dl = rad(b.lon - a.lon);
@@ -454,10 +482,18 @@
   }
 
   async function loadOneWeather(model, position, timestamp) {
+    recordWeatherCall(model);
     const cacheKey = `${model}:${position.lat.toFixed(3)}:${position.lon.toFixed(3)}:${Math.round(timestamp / 1800000)}`;
-    if (weatherCache.has(cacheKey)) return weatherCache.get(cacheKey);
+    if (weatherCache.has(cacheKey)) {
+      const cached = weatherCache.get(cacheKey);
+      recordWeatherCacheHit(model);
+      if (cached?.unavailable) recordWeatherUnavailable(model);
+      return cached;
+    }
+    recordWeatherCacheMiss(model);
 
     try {
+      recordWeatherRequest(model);
       const raw = await getPointForecastData(model, { lat: position.lat, lon: position.lon });
 
       // Windy plugin API responses have existed in more than one wrapper shape.
@@ -488,10 +524,16 @@
       })).filter((p) => Number.isFinite(p.timestamp) && Number.isFinite(p.speed) && Number.isFinite(p.direction));
 
       if (!samples.length) throw new Error("Aucun échantillon météo exploitable");
+      recordWeatherResponse(model, {
+        sampleCount: samples.length,
+        startTimestamp: samples[0].timestamp,
+        endTimestamp: samples.at(-1).timestamp,
+      });
 
       // Linear interpolation is sufficient for the point forecast display and
       // avoids doing work for every route waypoint.
       if (timestamp < samples[0].timestamp || timestamp > samples[samples.length - 1].timestamp) {
+        recordWeatherUnavailable(model);
         const unavailable = { model, tws: null, twd: null, twa: null, unavailable: true };
         weatherCache.set(cacheKey, unavailable);
         return unavailable;
@@ -540,6 +582,7 @@
       if (weatherCache.size > 500) weatherCache.delete(weatherCache.keys().next().value);
       return result;
     } catch (error) {
+      recordWeatherError(model);
       console.error(`[WindyVR LSV Team] ${model}`, error);
       return { model, tws: null, twd: null, twa: null };
     }
@@ -572,20 +615,23 @@
     const selectedRoutes = [...routes];
     const jobs = [];
     const sampleCounts = new Map();
+    const diagnosticSampleCounts = [];
     analysisStatus = 'running'; analysisProgress = 0; routeAnalysis = [];
     routes.forEach(destroyRiskLayers);
-    for (const route of selectedRoutes) {
+    for (const [routeIndex, route] of selectedRoutes.entries()) {
       const times = buildSampleTimes(route.points);
       sampleCounts.set(route.id, times.length);
+      diagnosticSampleCounts.push({ routeIndex: routeIndex + 1, source: route.source, count: times.length });
       for (const timestamp of times) {
         const position = interpolateRoute(route.points, timestamp);
         for (const model of MODELS) jobs.push({ routeId: route.id, timestamp, position, model: model.id });
       }
     }
+    startAnalysisDiagnostics({ routeCount: selectedRoutes.length, jobCount: jobs.length, sampleCounts: diagnosticSampleCounts });
     const samples = [];
     try {
       for (let i = 0; i < jobs.length; i += 4) {
-        if (token !== analysisGeneration) return;
+        if (token !== analysisGeneration) { finishAnalysisDiagnostics('cancelled'); return; }
         const batch = jobs.slice(i, i + 4);
         const values = await Promise.all(batch.map(async job => {
           const value = await loadOneWeather(job.model, job.position, job.timestamp);
@@ -594,7 +640,7 @@
         samples.push(...values);
         analysisProgress = Math.round(Math.min(jobs.length, i + batch.length) / jobs.length * 100);
       }
-      if (token !== analysisGeneration) return;
+      if (token !== analysisGeneration) { finishAnalysisDiagnostics('cancelled'); return; }
       const earliestEta = Math.min(...selectedRoutes.map(route => route.points.at(-1).time.getTime()));
       routeAnalysis = selectedRoutes.map(route => {
         const routeSamples = samples.filter(s => s.routeId === route.id);
@@ -608,7 +654,9 @@
       });
       applyRiskLayers();
       analysisStatus = 'done'; analysisProgress = 100;
+      finishAnalysisDiagnostics('done');
     } catch (error) {
+      finishAnalysisDiagnostics('error');
       console.error('[WindyVR LSV Team] analyse multi-modèle', error);
       if (token === analysisGeneration) analysisStatus = 'error';
     }
@@ -748,6 +796,7 @@
   .snapshot-table{min-width:560px}.analysis-foot{padding:11px 3px 2px}
   .full-weather{margin-top:10px}.full-weather-head{display:flex;justify-content:space-between;gap:12px;align-items:center}
   .full-weather-head h3{margin:0 0 3px}.full-weather-head p{margin:0;font-size:10px;opacity:.66}.full-weather-head button{white-space:nowrap}
+  .full-weather-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
   .progress{height:7px;margin:10px 0;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden}.progress i{display:block;height:100%;background:#ff8a00;transition:width .2s}
   .full-weather-table{min-width:880px}.full-weather-table small{font-weight:400;opacity:.65}.analysis-error{color:#ff8d8d;font-size:11px}
   .visual-window{max-width:1050px}.visual-empty{padding:40px 10px;text-align:center}.visual-empty p{opacity:.7}
