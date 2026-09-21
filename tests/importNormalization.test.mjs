@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import { metersPerSecondToKnots, parseRouteDescription } from '../src/routeParser.js';
+import {
+  analyzeTemporalOrder,
+  metersPerSecondToKnots,
+  normalizeWindFields,
+  parseCsv,
+  parseRouteDescription,
+} from '../src/routeParser.js';
 
 const routeMarins = parseRouteDescription('HDG: 160° TWA: 50°  Stay SOG: 9.05 kts TWS:19.0 kt');
 assert.equal(routeMarins.cog, 160);
@@ -24,5 +30,62 @@ assert.equal(legacy.sail, 'Jib');
 
 assert.ok(Math.abs(metersPerSecondToKnots(3.16) - 6.1425344) < 1e-7);
 assert.equal(metersPerSecondToKnots(null), null);
+
+const avalonAngles = normalizeWindFields({ cog: 11, twd: 245.19, twa: 125.81 });
+assert.ok(Math.abs(avalonAngles.twa - (-125.81)) < 1e-9);
+assert.ok(Math.abs(avalonAngles.twd - 245.19) < 1e-9);
+
+const reconstructed = normalizeWindFields({ cog: 160, twd: null, twa: 50 });
+assert.equal(reconstructed.twa, 50);
+assert.equal(reconstructed.twd, 210);
+
+const wrapped = normalizeWindFields({ cog: 350, twd: null, twa: 30 });
+assert.equal(wrapped.twd, 20);
+
+const temporal = analyzeTemporalOrder([
+  { time: new Date('2026-09-21T01:00:00Z') },
+  { time: new Date('2026-09-21T03:00:00Z') },
+  { time: new Date('2026-09-21T02:00:00Z') },
+  { time: new Date('2026-09-21T02:00:00Z') },
+]);
+assert.equal(temporal.reversedTimestamps, 1);
+assert.equal(temporal.duplicateTimestamps, 1);
+
+const csv = [
+  'timestamp;lat;lon;cog;sog;tws;twd;twa;sail',
+  '2026-09-21T00:00:00Z;48;-5;10;8;15;245;125;Jib',
+  '2026-09-21T01:00:00Z;48.1;-5.1;20;;16;;40;',
+  '2026-09-21T01:00:00Z;48.1;-5.1;20;9;;;;Spi',
+  '2026-09-21T00:30:00Z;48.05;-5.05;15;8.5;15;;;Jib',
+].join('\n');
+const parsedCsv = parseCsv(csv);
+assert.equal(parsedCsv.qualityMeta.duplicateTimestamps, 1);
+assert.equal(parsedCsv.qualityMeta.reversedTimestamps, 1);
+assert.equal(parsedCsv.qualityMeta.originalPointCount, 4);
+assert.equal(parsedCsv.points.length, 3);
+const merged = parsedCsv.points.find(point => point.time.toISOString() === '2026-09-21T01:00:00.000Z');
+assert.equal(merged.sog, 9);
+assert.equal(merged.tws, 16);
+assert.equal(merged.sail, 'Spi');
+assert.equal(merged.twd, 60);
+assert.equal(merged.twa, 40);
+
+const avalonOutOfOrder = [
+  'Date;Heading;Latitude;Longitude;Speed;TWS;TWD;TWA;SailSet',
+  '21/09 12:00;180;48;-5;8;15;220;40;Jib',
+  '21/09 14:00;180;48.1;-5.1;8;15;220;40;Jib',
+  '21/09 13:00;180;48.05;-5.05;8;15;220;40;Jib',
+].join('\n');
+const parsedAvalonOutOfOrder = parseCsv(avalonOutOfOrder);
+assert.equal(parsedAvalonOutOfOrder.qualityMeta.reversedTimestamps, 1);
+
+const avalonYearRollover = [
+  'Date;Heading;Latitude;Longitude;Speed;TWS;TWD;TWA;SailSet',
+  '31/12 23:00;180;48;-5;8;15;220;40;Jib',
+  '01/01 01:00;180;48.1;-5.1;8;15;220;40;Jib',
+].join('\n');
+const parsedAvalonYearRollover = parseCsv(avalonYearRollover);
+assert.equal(parsedAvalonYearRollover.points[1].time.getUTCFullYear(), parsedAvalonYearRollover.points[0].time.getUTCFullYear() + 1);
+assert.equal(parsedAvalonYearRollover.qualityMeta.reversedTimestamps, 0);
 
 console.log('import normalization tests: OK');

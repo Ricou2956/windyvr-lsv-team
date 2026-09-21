@@ -40,6 +40,31 @@ export function signedAngle(windDir, course) {
   return d;
 }
 
+const normalize360 = value => {
+  const n = num(value);
+  return n == null ? null : ((n % 360) + 360) % 360;
+};
+
+export function normalizeWindFields(point) {
+  const normalized = { ...point };
+  const cog = normalize360(normalized.cog);
+  const twd = normalize360(normalized.twd);
+  const twa = angle180(normalized.twa);
+  if (cog != null) normalized.cog = cog;
+
+  if (cog != null && twd != null) {
+    normalized.twd = twd;
+    normalized.twa = signedAngle(twd, cog);
+  } else if (cog != null && twa != null) {
+    normalized.twa = twa;
+    normalized.twd = normalize360(cog + twa);
+  } else {
+    if (twd != null) normalized.twd = twd;
+    if (twa != null) normalized.twa = twa;
+  }
+  return normalized;
+}
+
 function parseAvalonDate(value, yearHint = new Date().getUTCFullYear()) {
   const s = clean(value);
   const direct = Date.parse(s);
@@ -48,6 +73,11 @@ function parseAvalonDate(value, yearHint = new Date().getUTCFullYear()) {
   if (!m) return null;
   const [, dd, mm, hh, mi, ss = '0'] = m;
   return new Date(Date.UTC(yearHint, Number(mm) - 1, Number(dd), Number(hh), Number(mi), Number(ss)));
+}
+
+function isProbableYearRollover(previous, candidate) {
+  if (!(previous instanceof Date) || !(candidate instanceof Date)) return false;
+  return previous.getUTCMonth() >= 10 && candidate.getUTCMonth() <= 1;
 }
 
 function detectDelimiter(line) {
@@ -98,16 +128,60 @@ function getCol(headers, names) {
   return -1;
 }
 
-function finalize(points) {
-  const valid = points
-    .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon) && p.time instanceof Date && !Number.isNaN(p.time.getTime()))
-    .sort((a, b) => a.time - b.time);
-  if (valid.length < 2) throw new Error('La route doit contenir au moins deux points horodatés.');
-  for (let i = 0; i < valid.length - 1; i += 1) {
-    if (!Number.isFinite(valid[i].cog)) valid[i].cog = bearing(valid[i].lat, valid[i].lon, valid[i + 1].lat, valid[i + 1].lon);
+export function analyzeTemporalOrder(points) {
+  const timestamps = points
+    .map(point => point?.time instanceof Date ? point.time.getTime() : NaN)
+    .filter(Number.isFinite);
+  let reversedTimestamps = 0;
+  for (let i = 1; i < timestamps.length; i += 1) {
+    if (timestamps[i] < timestamps[i - 1]) reversedTimestamps += 1;
   }
-  if (!Number.isFinite(valid.at(-1).cog)) valid.at(-1).cog = valid.at(-2).cog;
-  return valid;
+  const counts = new Map();
+  for (const timestamp of timestamps) counts.set(timestamp, (counts.get(timestamp) || 0) + 1);
+  const duplicateTimestamps = [...counts.values()].reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+  return { duplicateTimestamps, reversedTimestamps };
+}
+
+function pointCompleteness(point) {
+  return ['lat', 'lon', 'cog', 'sog', 'tws', 'twd', 'twa', 'sail', 'currentSpeed', 'currentDir', 'pressure']
+    .reduce((count, key) => count + (point?.[key] != null && point[key] !== '' ? 1 : 0), 0);
+}
+
+function mergeDuplicatePoints(a, b) {
+  const primary = pointCompleteness(b) > pointCompleteness(a) ? b : a;
+  const secondary = primary === a ? b : a;
+  const merged = { ...primary };
+  for (const key of ['lat', 'lon', 'cog', 'sog', 'tws', 'twd', 'twa', 'sail', 'currentSpeed', 'currentDir', 'pressure']) {
+    if ((merged[key] == null || merged[key] === '') && secondary[key] != null && secondary[key] !== '') merged[key] = secondary[key];
+  }
+  return merged;
+}
+
+function finalize(points) {
+  const validInInputOrder = points
+    .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon) && p.time instanceof Date && !Number.isNaN(p.time.getTime()));
+  const qualityMeta = analyzeTemporalOrder(validInInputOrder);
+  const sorted = [...validInInputOrder].sort((a, b) => a.time - b.time);
+  const deduplicated = [];
+  for (const point of sorted) {
+    const previous = deduplicated.at(-1);
+    if (previous && previous.time.getTime() === point.time.getTime()) deduplicated[deduplicated.length - 1] = mergeDuplicatePoints(previous, point);
+    else deduplicated.push({ ...point });
+  }
+  if (deduplicated.length < 2) throw new Error('La route doit contenir au moins deux points horodatés.');
+  for (let i = 0; i < deduplicated.length - 1; i += 1) {
+    if (!Number.isFinite(deduplicated[i].cog)) deduplicated[i].cog = bearing(deduplicated[i].lat, deduplicated[i].lon, deduplicated[i + 1].lat, deduplicated[i + 1].lon);
+  }
+  if (!Number.isFinite(deduplicated.at(-1).cog)) deduplicated.at(-1).cog = deduplicated.at(-2).cog;
+  const normalized = deduplicated.map(normalizeWindFields);
+  return {
+    points: normalized,
+    qualityMeta: {
+      ...qualityMeta,
+      deduplicatedTimestamps: qualityMeta.duplicateTimestamps,
+      originalPointCount: validInInputOrder.length,
+    },
+  };
 }
 
 export function parseCsv(text) {
@@ -131,7 +205,10 @@ export function parseCsv(text) {
     let time;
     if (isAvalon) {
       time = parseAvalonDate(row[idx.time], year);
-      if (time && previous && time < previous) { year += 1; time = parseAvalonDate(row[idx.time], year); }
+      if (time && previous && time < previous && isProbableYearRollover(previous, time)) {
+        year += 1;
+        time = parseAvalonDate(row[idx.time], year);
+      }
     } else {
       const rawTime = clean(row[idx.time]);
       const explicitUtc = isZezo && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?$/.test(rawTime)
@@ -156,7 +233,7 @@ export function parseCsv(text) {
       pressure: idx.pressure >= 0 ? num(row[idx.pressure]) : null,
     });
   }
-  return { source: isZezo ? 'ZEZO' : (isAvalon ? 'Avalon' : 'CSV routeur'), points: finalize(points) };
+  return { source: isZezo ? 'ZEZO' : (isAvalon ? 'Avalon' : 'CSV routeur'), ...finalize(points) };
 }
 
 function directText(el, selector) {
@@ -247,7 +324,7 @@ export function parseGpx(text) {
     && routePoints.slice(0, Math.min(routePoints.length, 8)).every(el => directText(el, 'course') && directText(el, 'speed'));
   const metaText = xml.querySelector('metadata')?.textContent || '';
   const source = detectGpxSource({ creator, metaText, descSample, hasESailStructure });
-  return { source, points: finalize(points) };
+  return { source, ...finalize(points) };
 }
 
 export function detectGpxSource({ creator = '', metaText = '', descSample = '', hasESailStructure = false } = {}) {

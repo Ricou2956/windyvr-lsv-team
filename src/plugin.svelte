@@ -685,7 +685,7 @@
           id: `${Date.now()}-${Math.random()}`,
           name: file.name, source: parsed.source, points: parsed.points,
           color: COLORS[routes.length % COLORS.length], visible: routes.filter(r => r.visible).length < MAX_VISIBLE_ROUTES,
-          nativeModel: parsed.nativeModel, cycle: parsed.cycle,
+          nativeModel: parsed.nativeModel, cycle: parsed.cycle, qualityMeta: parsed.qualityMeta || {},
           position: interpolateRoute(parsed.points, currentTimestamp), weather: {},
           polyline: null, marker: null, riskLayers: [],
         };

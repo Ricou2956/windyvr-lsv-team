@@ -153,9 +153,10 @@ function routeDiagnostics(route, routeIndex) {
   }
 
   let distanceNm = 0;
-  let duplicateTimestamps = 0;
-  let reversedTimestamps = 0;
+  let duplicateTimestamps = Number.isFinite(route?.qualityMeta?.duplicateTimestamps) ? route.qualityMeta.duplicateTimestamps : 0;
+  let reversedTimestamps = Number.isFinite(route?.qualityMeta?.reversedTimestamps) ? route.qualityMeta.reversedTimestamps : 0;
   let invalidPositions = 0;
+  const temporalMetaAvailable = route?.qualityMeta && (Number.isFinite(route.qualityMeta.duplicateTimestamps) || Number.isFinite(route.qualityMeta.reversedTimestamps));
   for (let i = 0; i < points.length; i += 1) {
     const point = points[i];
     if (!Number.isFinite(point.lat) || !Number.isFinite(point.lon) || Math.abs(point.lat) > 90 || Math.abs(point.lon) > 180) invalidPositions += 1;
@@ -163,9 +164,11 @@ function routeDiagnostics(route, routeIndex) {
       if (Number.isFinite(points[i - 1].lat) && Number.isFinite(points[i - 1].lon) && Number.isFinite(point.lat) && Number.isFinite(point.lon)) {
         distanceNm += haversineNm(points[i - 1], point);
       }
-      const gap = point.time?.getTime?.() - points[i - 1].time?.getTime?.();
-      if (gap === 0) duplicateTimestamps += 1;
-      else if (Number.isFinite(gap) && gap < 0) reversedTimestamps += 1;
+      if (!temporalMetaAvailable) {
+        const gap = point.time?.getTime?.() - points[i - 1].time?.getTime?.();
+        if (gap === 0) duplicateTimestamps += 1;
+        else if (Number.isFinite(gap) && gap < 0) reversedTimestamps += 1;
+      }
     }
   }
 
@@ -198,6 +201,8 @@ function routeDiagnostics(route, routeIndex) {
     sogToGeometricRatio: averageSogKt != null && geometricAverageKt > 0 ? Number((averageSogKt / geometricAverageKt).toFixed(4)) : null,
     duplicateTimestamps,
     reversedTimestamps,
+    deduplicatedTimestamps: Number.isFinite(route?.qualityMeta?.deduplicatedTimestamps) ? route.qualityMeta.deduplicatedTimestamps : 0,
+    originalPointCount: Number.isFinite(route?.qualityMeta?.originalPointCount) ? route.qualityMeta.originalPointCount : points.length,
     invalidPositions,
     fieldCoveragePercent: fieldCoverage,
   };

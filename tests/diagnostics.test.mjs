@@ -35,6 +35,7 @@ const route = {
   id: 'private-id',
   name: 'SECRET_ROUTE_NAME.csv',
   source: 'Avalon',
+  qualityMeta: { duplicateTimestamps: 1, reversedTimestamps: 2, deduplicatedTimestamps: 1, originalPointCount: 3 },
   points: [
     { time: new Date('2026-09-18T00:00:00Z'), lat: 48.123456, lon: -5.123456, sog: 10, tws: 12, twd: 240, twa: -90, cog: 330, sail: 'Jib' },
     { time: new Date('2026-09-18T01:00:00Z'), lat: 48.223456, lon: -5.223456, sog: 10, tws: 13, twd: 245, twa: -85, cog: 335, sail: 'Jib' },
@@ -47,6 +48,10 @@ assert.equal(report.analysisRun.weather.networkRequests, 1);
 assert.equal(report.analysisRun.weather.cacheHits, 1);
 assert.equal(report.session.weather.byModel.ecmwf.seriesEndMinUtc, '2026-09-22T00:00:00.000Z');
 assert.equal(report.routes[0].pointCount, 2);
+assert.equal(report.routes[0].duplicateTimestamps, 1);
+assert.equal(report.routes[0].reversedTimestamps, 2);
+assert.equal(report.routes[0].deduplicatedTimestamps, 1);
+assert.equal(report.routes[0].originalPointCount, 3);
 assert.equal(report.routes[0].fieldCoveragePercent.sog, 100);
 assert.equal(report.privacy.containsFileNames, false);
 assert.equal(report.privacy.containsCoordinates, false);
