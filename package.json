@@ -1,6 +1,6 @@
 {
   "name": "windy-plugin-windyvr-lsv-team",
-  "version": "1.1.0",
+  "version": "1.2.0-rc.1",
   "description": "Analyse météo multi-route Virtual Regatta pour WindyVR LSV Team",
   "main": "dist/plugin.min.js",
   "type": "module",
@@ -8,7 +8,7 @@
     "build": "rm -rf dist && mkdir dist && SERVE=false rollup -c && cp package.json dist/",
     "build:win": "node -e \"const fs=require('node:fs');fs.rmSync('dist',{recursive:true,force:true});fs.mkdirSync('dist',{recursive:true})\" && set \"SERVE=false\" && rollup -c && copy /Y package.json dist\\",
     "start": "rollup -w -c",
-    "test": "node tests/csv.test.mjs && node tests/timeUtils.test.mjs && node tests/formats.test.mjs && node tests/dateTime.test.mjs && node tests/analysisUtils.test.mjs && node tests/qualityUtils.test.mjs && node tests/diagnostics.test.mjs && node tests/importNormalization.test.mjs && node tests/weatherAdapter.test.mjs && node tests/lifecycleUtils.test.mjs && node tests/uiAccessibility.test.mjs && node tests/importUtils.test.mjs && node tests/maintenance.test.mjs"
+    "test": "node tests/csv.test.mjs && node tests/timeUtils.test.mjs && node tests/formats.test.mjs && node tests/dateTime.test.mjs && node tests/analysisUtils.test.mjs && node tests/qualityUtils.test.mjs && node tests/diagnostics.test.mjs && node tests/importNormalization.test.mjs && node tests/weatherAdapter.test.mjs && node tests/lifecycleUtils.test.mjs && node tests/uiAccessibility.test.mjs && node tests/importUtils.test.mjs && node tests/maintenance.test.mjs && node tests/remainingAudit.test.mjs"
   },
   "keywords": [
     "windy",

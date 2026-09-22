@@ -54,7 +54,7 @@ const routeAnalysis = [{
   routeWindow: { start: Date.parse('2026-09-18T00:00:00Z'), end: Date.parse('2026-09-18T01:00:00Z'), distanceNm: 8.4 },
   quality: { level: 'green', issues: [] }, summary: { byModel: {}, critical: null }, riskEvents: [], coverageWindow: { firstCovered: Date.parse('2026-09-18T00:30:00Z'), lastCovered: Date.parse('2026-09-18T01:00:00Z'), temporalCoveragePercent: 50, sampleCoveragePercent: 50, distanceCoveragePercent: 50, coveredDistanceNm: 4.2, totalDistanceNm: 8.4, complete: false, limitingReason: 'before-forecast-window', leadingReason: 'before-forecast-window', trailingReason: null, startsBeforeForecast: true, endsAfterForecast: false, requestedSamples: 2, coveredSamples: 1 }, riskProfile: null,
 }];
-const report = buildDiagnosticsReport({ pluginVersion: '1.1.0', routes: [route], routeAnalysis });
+const report = buildDiagnosticsReport({ pluginVersion: '1.2.0-rc.1', routes: [route], routeAnalysis });
 assert.equal(report.schemaVersion, 5);
 assert.equal(report.analysisRun.status, 'done');
 assert.equal(report.analysisRun.weather.networkRequests, 1);

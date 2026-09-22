@@ -1,4 +1,4 @@
-# WindyVR LSV Team 1.1.0
+# WindyVR LSV Team 1.2.0-rc.1
 
 Plugin Windy destiné à l'analyse météo de routes issues de routeurs Virtual Regatta. Il ne calcule pas une nouvelle route : il compare les routes importées et mesure leur exposition aux modèles ECMWF, GFS et ICON.
 
@@ -91,3 +91,10 @@ L'identifiant `windy-plugin-windyvr-lsv-team` et le chemin `/windyvr-lsv-team` d
 ## Licence
 
 MIT
+
+
+## Version 1.2.0-rc.1
+
+Cette release candidate regroupe la campagne de fiabilisation issue de l'audit 1.1.0 : normalisation des imports et unités, contrôle qualité temporel, adaptation de la réponse météo, fenêtre réellement analysée, score de concordance robuste, ETA comparables uniquement entre mêmes arrivées, analyse incrémentale, cycle de vie Windy, accessibilité, diagnostic local et rapport PDF enrichi.
+
+Le diagnostic JSON reste local au navigateur : il n'est pas transmis automatiquement et n'inclut ni noms de fichiers ni coordonnées.
