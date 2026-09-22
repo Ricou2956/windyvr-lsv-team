@@ -196,6 +196,7 @@
   } from './diagnostics.js';
   import { parseRouteFile } from './routeParser';
   import { interpolateRoute } from './timeUtils';
+  import { createPluginLifecycle, markerOpacityForPosition } from './lifecycleUtils.js';
   import { forecastValueAt, normalizeForecastSeries } from './weatherAdapter.js';
 
   const { title } = config;
@@ -215,6 +216,7 @@
   let analysisStatus = 'idle';
   let analysisProgress = 0;
   let routeAnalysis = [];
+  let timestampSubscriptionId = null;
 
   function boatIcon(color, cog = 0) {
     const heading = Math.round(cog || 0);
@@ -447,6 +449,7 @@
     route.polyline = new L.Polyline(latLngs, { color: route.color, weight: 3, opacity: 0.82 }).addTo(map);
     const p = route.position || route.points[0];
     route.marker = new L.Marker([p.lat, p.lon], { icon: boatIcon(route.color, p.cog), zIndexOffset: 500 }).addTo(map);
+    route.marker.setOpacity(markerOpacityForPosition(p));
     const analysis = routeAnalysis.find(item => item.routeId === route.id);
     if (analysis) createRiskLayers(route, analysis.riskEvents);
   }
@@ -487,6 +490,7 @@
       if (route.marker && route.position) {
         route.marker.setLatLng([route.position.lat, route.position.lon]);
         route.marker.setIcon(boatIcon(route.color, route.position.cog));
+        route.marker.setOpacity(markerOpacityForPosition(route.position));
       }
     }
     routes = [...routes];
@@ -702,15 +706,54 @@
     scheduleWeather();
   }
 
+  function subscribeTimestamp() {
+    if (timestampSubscriptionId != null) return;
+    timestampSubscriptionId = store.on('timestamp', onTimestamp);
+  }
+
+  function unsubscribeTimestamp() {
+    if (timestampSubscriptionId == null) return;
+    store.off(timestampSubscriptionId);
+    timestampSubscriptionId = null;
+  }
+
+  function activatePlugin() {
+    currentTimestamp = store.get('timestamp');
+    subscribeTimestamp();
+    updateRoutePositions(currentTimestamp);
+    for (const route of routes) {
+      if (route.visible && !route.polyline && !route.marker) createMapObjects(route);
+    }
+    if (routes.length) scheduleWeather();
+  }
+
+  function deactivatePlugin() {
+    generation += 1;
+    analysisGeneration += 1;
+    if (weatherTimer) { clearTimeout(weatherTimer); weatherTimer = null; }
+    unsubscribeTimestamp();
+    routes.forEach(destroyMapObjects);
+    analysisOpen = false;
+    visualOpen = false;
+    if (analysisStatus === 'running') {
+      analysisStatus = 'idle';
+      analysisProgress = 0;
+    }
+  }
+
+  const pluginLifecycle = createPluginLifecycle({ onActivate: activatePlugin, onDeactivate: deactivatePlugin });
+
+  // onopen/onclose rendent aussi le nettoyage robuste sur les hôtes Windy
+  // qui conservent le composant monté lors de la fermeture du panneau.
+  export const onopen = () => { pluginLifecycle.activate(); };
+  export const onclose = () => { pluginLifecycle.deactivate(); };
+
   onMount(() => {
-    store.on('timestamp', onTimestamp);
+    pluginLifecycle.activate();
   });
 
   onDestroy(() => {
-    generation += 1;
-    analysisGeneration += 1;
-    if (weatherTimer) clearTimeout(weatherTimer);
-    store.off('timestamp', onTimestamp);
+    pluginLifecycle.deactivate();
     routes.forEach(destroyMapObjects);
     routes = [];
     weatherSeriesCache.clear();
