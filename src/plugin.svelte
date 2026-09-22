@@ -78,12 +78,12 @@
         <h3>Comparaison des routes importées</h3>
         <div class="analysis-table-scroll">
           <table class="analysis-table">
-            <thead><tr><th>Route</th><th>Modèle/run natif</th><th>Points</th><th>Fin fichier</th><th>Durée</th><th>Distance</th><th>SOG moy.</th><th>TWS moy./max</th><th>Vent &lt; 8 kt</th><th>Manœuvres</th></tr></thead>
+            <thead><tr><th>Route</th><th>Modèle/run natif</th><th>Points</th><th>Période fichier</th><th>Durée</th><th>Distance</th><th>SOG moy.</th><th>TWS moy./max</th><th>Vent &lt; 8 kt</th><th>Manœuvres</th></tr></thead>
             <tbody>
               {#each routes as route}
                 <tr>
                   <td><span class="dot small" style={`background:${route.color}`}></span>{route.source}</td>
-                  <td>{routeMeta(route)}</td><td>{route.points.length}</td><td>{summarizeRoute(route).end}</td><td>{summarizeRoute(route).duration}</td>
+                  <td>{routeMeta(route)}</td><td>{route.points.length}</td><td>{summarizeRoute(route).start}<br>→ {summarizeRoute(route).end}</td><td>{summarizeRoute(route).duration}</td>
                   <td>{summarizeRoute(route).distance}</td><td>{summarizeRoute(route).avgSog}</td><td>{summarizeRoute(route).wind}</td><td>{summarizeRoute(route).lightWind}</td><td>{summarizeRoute(route).maneuvers}</td>
                 </tr>
               {/each}
@@ -155,12 +155,15 @@
         <div class="visual-empty"><strong>Analyse multi-modèle nécessaire</strong><p>Ouvrez « Analyse complète », puis cliquez sur « Lancer l’analyse ».</p></div>
       {:else}
         <div class="global-alert risk-{globalRisk().level}"><i></i><div><strong>{globalRisk().label}</strong><span>{globalRisk().detail}</span></div></div>
+        {#if routeAnalysis.some(item => item.etaComparable === false)}
+          <div class="eta-warning"><strong>ETA non comparables</strong><span>Les arrivées diffèrent de plus de {Math.round(routeAnalysis[0]?.arrivalMaxSeparationNm || 0)} nm. Les heures d’arrivée restent affichées, mais aucun classement ETA n’est calculé.</span></div>
+        {/if}
         <div class="visual-routes">
           {#each routeAnalysis as item}
             <article class="visual-route risk-{routeRisk(item).level}">
               <header><strong>{item.label}</strong><span>{routeRisk(item).label}</span></header>
               <div class="risk-meter"><i style={`width:${routeRisk(item).score}%`}></i></div>
-              <p>{routeRisk(item).detail}</p><small>ETA {item.eta} · {item.etaGap} · qualité {qualityLabel(item.quality)}<br>{analysisWindowLabel(item.coverageWindow)}</small>
+              <p>{routeRisk(item).detail}</p><small>Parcours {routeWindowLabel(item.routeWindow)}<br>ETA {item.eta} · {item.etaGap} · qualité {qualityLabel(item.quality)}<br>Météo {analysisWindowLabel(item.coverageWindow)}</small>
             </article>
           {/each}
         </div>
@@ -184,7 +187,7 @@
   import { onDestroy, onMount } from 'svelte';
   import config from './pluginConfig.ts';
   import { formatLocalDateTime } from './dateTime.js';
-  import { buildRiskEvents, buildSampleTimes, selectCriticalEvents, summarizeCoverageWindow, summarizeRiskProfile, summarizeRouteDistanceWindow, summarizeWeatherSamples } from './analysisUtils.js';
+  import { buildRiskEvents, buildSampleTimes, selectCriticalEvents, summarizeArrivalComparability, summarizeCoverageWindow, summarizeRiskProfile, summarizeRouteDistanceWindow, summarizeWeatherSamples } from './analysisUtils.js';
   import { assessRouteQuality } from './qualityUtils.js';
   import {
     buildDiagnosticsReport, finishAnalysisDiagnostics, recordWeatherCacheHit, recordWeatherCacheMiss,
@@ -290,6 +293,11 @@
     return `${span} · ${Math.round(window.temporalCoveragePercent || 0)} % · ${distance} · ${reason}`;
   }
 
+  function routeWindowLabel(window) {
+    if (!window?.start || !window?.end) return 'n/a';
+    return `${formatLocalDateTime(window.start)} → ${formatLocalDateTime(window.end)} · ${Math.round(window.distanceNm || 0)} nm`;
+  }
+
   function criticalSummary(value) {
     if (!value) return 'n/a';
     return `${formatLocalDateTime(value.timestamp)}\nΔ vent ${value.speedSpread.toFixed(1)} kt · Δ dir ${Math.round(value.directionSpread)}°`;
@@ -347,8 +355,8 @@
   }
 
   function exportReport() {
-    const rows = routeAnalysis.map(item => { const risk = routeRisk(item); return `<tr><td>${escapeHtml(item.label)}</td><td class="${risk.level}">${escapeHtml(risk.label)}</td><td>${escapeHtml(risk.detail)}</td><td>${escapeHtml(item.eta)}<br>${escapeHtml(item.etaGap)}</td><td>${escapeHtml(item.quality.issues.join(' · ') || 'Fichier cohérent')}</td></tr>`; }).join('');
-    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Synthèse WindyVR LSV Team</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,sans-serif;margin:24px;color:#16303c}h1{margin-bottom:4px}p{color:#586970}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ccd7dc;padding:9px;text-align:left;font-size:12px}.green{color:#16833b}.orange{color:#b46200}.red{color:#bd2424}@media print{button{display:none}body{margin:0}}</style></head><body><h1>Synthèse météo WindyVR LSV Team</h1><p>Générée le ${escapeHtml(formatLocalDateTime(Date.now()))} · ECMWF / GFS / ICON</p><table><thead><tr><th>Route</th><th>Concordance</th><th>P90 des écarts</th><th>ETA locale</th><th>Qualité</th></tr></thead><tbody>${rows}</tbody></table><p>Les couleurs mesurent la concordance des modèles, pas la performance de la route.</p><button onclick="window.print()">Imprimer / enregistrer en PDF</button></body></html>`;
+    const rows = routeAnalysis.map(item => { const risk = routeRisk(item); return `<tr><td>${escapeHtml(item.label)}</td><td class="${risk.level}">${escapeHtml(risk.label)}</td><td>${escapeHtml(risk.detail)}</td><td>${escapeHtml(routeWindowLabel(item.routeWindow))}</td><td>${escapeHtml(item.eta)}<br>${escapeHtml(item.etaGap)}</td><td>${escapeHtml(item.quality.issues.join(' · ') || 'Fichier cohérent')}</td></tr>`; }).join('');
+    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Synthèse WindyVR LSV Team</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,sans-serif;margin:24px;color:#16303c}h1{margin-bottom:4px}p{color:#586970}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ccd7dc;padding:9px;text-align:left;font-size:12px}.green{color:#16833b}.orange{color:#b46200}.red{color:#bd2424}@media print{button{display:none}body{margin:0}}</style></head><body><h1>Synthèse météo WindyVR LSV Team</h1><p>Générée le ${escapeHtml(formatLocalDateTime(Date.now()))} · ECMWF / GFS / ICON</p><table><thead><tr><th>Route</th><th>Concordance</th><th>P90 des écarts</th><th>Parcours</th><th>ETA locale</th><th>Qualité</th></tr></thead><tbody>${rows}</tbody></table><p>Les couleurs mesurent la concordance des modèles, pas la performance de la route.</p><button onclick="window.print()">Imprimer / enregistrer en PDF</button></body></html>`;
     const popup = window.open('', '_blank');
     if (!popup) { message = 'Le navigateur a bloqué la fenêtre d’export.'; return; }
     popup.document.open(); popup.document.write(html); popup.document.close();
@@ -418,7 +426,7 @@
     }
     const avgTws = avg(winds), maxTws = winds.length ? Math.max(...winds) : null;
     return {
-      end: formatLocalDateTime(last.time), duration: fmtDuration(last.time - first.time), distance: `${distance.toFixed(0)} nm`,
+      start: formatLocalDateTime(first.time), end: formatLocalDateTime(last.time), duration: fmtDuration(last.time - first.time), distance: `${distance.toFixed(0)} nm`,
       avgSog: sogs.length ? `${avg(sogs).toFixed(1)} kt` : 'n/a',
       wind: winds.length ? `${avgTws.toFixed(1)} / ${maxTws.toFixed(1)} kt` : 'n/a',
       lightWind: winds.length ? `${weightedHours(p, x => Number.isFinite(x.tws) && x.tws < 8).toFixed(0)} h` : 'n/a',
@@ -598,19 +606,26 @@
         analysisProgress = Math.round(Math.min(jobs.length, i + batch.length) / jobs.length * 100);
       }
       if (token !== analysisGeneration) { finishAnalysisDiagnostics('cancelled'); return; }
-      const earliestEta = Math.min(...selectedRoutes.map(route => route.points.at(-1).time.getTime()));
+      const arrivalComparison = summarizeArrivalComparability(selectedRoutes, 5);
+      const earliestEta = arrivalComparison.comparable ? Math.min(...selectedRoutes.map(route => route.points.at(-1).time.getTime())) : null;
       routeAnalysis = selectedRoutes.map(route => {
         const routeSamples = samples.filter(s => s.routeId === route.id);
         const etaMs = route.points.at(-1).time.getTime();
         const routeStartMs = route.points[0].time.getTime();
         const coverageWindow = summarizeCoverageWindow(routeSamples, routeStartMs, etaMs, MODELS.map(m => m.id));
         Object.assign(coverageWindow, summarizeRouteDistanceWindow(route.points, coverageWindow.firstCovered, coverageWindow.lastCovered));
+        const routeWindow = { start: routeStartMs, end: etaMs, distanceNm: coverageWindow.totalDistanceNm || 0 };
         const summary = summarizeWeatherSamples(routeSamples, MODELS.map(m => m.id));
         const riskEvents = buildRiskEvents(routeSamples);
         const riskProfile = summarizeRiskProfile(riskEvents, coverageWindow);
         return {
           routeId: route.id, source: route.source, label: routeLabel(route), color: route.color,
-          sampleCount: sampleCounts.get(route.id), eta: formatLocalDateTime(etaMs), etaGap: etaMs === earliestEta ? 'ETA la plus tôt' : `+${fmtEtaDelta(etaMs - earliestEta)}`,
+          sampleCount: sampleCounts.get(route.id), eta: formatLocalDateTime(etaMs),
+          etaComparable: arrivalComparison.comparable,
+          etaGap: arrivalComparison.comparable ? (etaMs === earliestEta ? 'ETA la plus tôt' : `+${fmtEtaDelta(etaMs - earliestEta)}`) : 'non comparable · arrivée différente',
+          arrivalThresholdNm: arrivalComparison.thresholdNm,
+          arrivalMaxSeparationNm: arrivalComparison.maxSeparationNm,
+          routeWindow,
           quality: assessRouteQuality(route), coverageWindow, summary, riskEvents, riskProfile,
         };
       });

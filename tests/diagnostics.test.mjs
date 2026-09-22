@@ -48,8 +48,14 @@ const route = {
     { time: new Date('2026-09-18T01:00:00Z'), lat: 48.223456, lon: -5.223456, sog: 10, tws: 13, twd: 245, twa: -85, cog: 335, sail: 'Jib' },
   ],
 };
-const report = buildDiagnosticsReport({ pluginVersion: '1.1.0', routes: [route], routeAnalysis: [] });
-assert.equal(report.schemaVersion, 3);
+const routeAnalysis = [{
+  routeId: 'private-id', source: 'Avalon', label: 'Avalon', sampleCount: 1,
+  etaComparable: false, arrivalThresholdNm: 5, arrivalMaxSeparationNm: 42.37,
+  routeWindow: { start: Date.parse('2026-09-18T00:00:00Z'), end: Date.parse('2026-09-18T01:00:00Z'), distanceNm: 8.4 },
+  quality: { level: 'green', issues: [] }, summary: { byModel: {}, critical: null }, riskEvents: [], coverageWindow: null, riskProfile: null,
+}];
+const report = buildDiagnosticsReport({ pluginVersion: '1.1.0', routes: [route], routeAnalysis });
+assert.equal(report.schemaVersion, 4);
 assert.equal(report.analysisRun.status, 'done');
 assert.equal(report.analysisRun.weather.networkRequests, 1);
 assert.equal(report.analysisRun.weather.cacheHits, 1);
@@ -67,6 +73,12 @@ assert.equal(report.routes[0].discardedInvalidPositions, 1);
 assert.equal(report.routes[0].dateInterpretation, 'heure locale navigateur');
 assert.equal(report.routes[0].inferredYear, 2026);
 assert.equal(report.routes[0].fieldCoveragePercent.sog, 100);
+assert.equal(report.routeAnalysis[0].etaComparison.comparable, false);
+assert.equal(report.routeAnalysis[0].etaComparison.status, 'different-arrivals');
+assert.equal(report.routeAnalysis[0].etaComparison.maxSeparationNm, 42.4);
+assert.equal(report.routeAnalysis[0].routeWindow.distanceNm, 8.4);
+assert.equal(report.routeAnalysis[0].routeWindow.startUtc, '2026-09-18T00:00:00.000Z');
+
 assert.equal(report.privacy.containsFileNames, false);
 assert.equal(report.privacy.containsCoordinates, false);
 const serialized = JSON.stringify(report);

@@ -1,4 +1,4 @@
-export const DIAGNOSTICS_SCHEMA_VERSION = 3;
+export const DIAGNOSTICS_SCHEMA_VERSION = 4;
 
 function emptyModelStats() {
   return {
@@ -264,6 +264,17 @@ function routeAnalysisDiagnostics(item, routeIndex) {
       limitingReason: item.coverageWindow.limitingReason || null,
       requestedSamples: item.coverageWindow.requestedSamples || 0,
       coveredSamples: item.coverageWindow.coveredSamples || 0,
+    } : null,
+    etaComparison: {
+      comparable: item?.etaComparable !== false,
+      thresholdNm: Number.isFinite(item?.arrivalThresholdNm) ? Number(item.arrivalThresholdNm.toFixed(1)) : null,
+      maxSeparationNm: Number.isFinite(item?.arrivalMaxSeparationNm) ? Number(item.arrivalMaxSeparationNm.toFixed(1)) : null,
+      status: item?.etaComparable === false ? 'different-arrivals' : 'comparable',
+    },
+    routeWindow: item?.routeWindow ? {
+      startUtc: Number.isFinite(item.routeWindow.start) ? new Date(item.routeWindow.start).toISOString() : null,
+      endUtc: Number.isFinite(item.routeWindow.end) ? new Date(item.routeWindow.end).toISOString() : null,
+      distanceNm: Number.isFinite(item.routeWindow.distanceNm) ? Number(item.routeWindow.distanceNm.toFixed(1)) : null,
     } : null,
     riskProfile: item?.riskProfile ? {
       score: Number.isFinite(item.riskProfile.score) ? item.riskProfile.score : 0,

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { angularDifference, buildRiskEvents, buildSampleTimes, samplingIntervalHours, selectCriticalEvents, summarizeCoverageWindow, summarizeRiskProfile, summarizeRouteDistanceWindow, summarizeWeatherSamples } from '../src/analysisUtils.js';
+import { angularDifference, buildRiskEvents, buildSampleTimes, samplingIntervalHours, selectCriticalEvents, summarizeArrivalComparability, summarizeCoverageWindow, summarizeRiskProfile, summarizeRouteDistanceWindow, summarizeWeatherSamples } from '../src/analysisUtils.js';
 
 const points = [{ time: new Date('2026-09-02T10:00:00Z') }, { time: new Date('2026-09-03T10:00:00Z') }];
 assert.deepEqual(buildSampleTimes(points), [Date.parse('2026-09-02T10:00:00Z'), Date.parse('2026-09-02T13:00:00Z'), Date.parse('2026-09-02T16:00:00Z'), Date.parse('2026-09-02T19:00:00Z'), Date.parse('2026-09-02T22:00:00Z'), Date.parse('2026-09-03T01:00:00Z'), Date.parse('2026-09-03T04:00:00Z'), Date.parse('2026-09-03T07:00:00Z'), Date.parse('2026-09-03T10:00:00Z')]);
@@ -73,5 +73,17 @@ assert.equal(criticalSelection.length, 3);
 assert.ok(criticalSelection.some(event => event.routeId === 'a' && event.timestamp === 100));
 assert.ok(criticalSelection.some(event => event.routeId === 'b' && event.timestamp === 200));
 assert.deepEqual(criticalSelection.map(event => event.timestamp), [...criticalSelection.map(event => event.timestamp)].sort((a, b) => a - b));
+
+
+const arrivalA = { id: 'a', points: [{ time: new Date('2026-09-25T00:00:00Z'), lat: 50, lon: -5 }] };
+const arrivalB = { id: 'b', points: [{ time: new Date('2026-09-25T01:00:00Z'), lat: 50, lon: -4.95 }] };
+const arrivalC = { id: 'c', points: [{ time: new Date('2026-09-25T02:00:00Z'), lat: 50, lon: -4.7 }] };
+const comparableArrivals = summarizeArrivalComparability([arrivalA, arrivalB], 5);
+assert.equal(comparableArrivals.comparable, true);
+assert.ok(comparableArrivals.maxSeparationNm < 5);
+const differentArrivals = summarizeArrivalComparability([arrivalA, arrivalC], 5);
+assert.equal(differentArrivals.comparable, false);
+assert.equal(differentArrivals.reason, 'different-arrivals');
+assert.ok(differentArrivals.maxSeparationNm > 5);
 
 console.log('weather analysis tests: OK');

@@ -221,6 +221,41 @@ export function summarizeCoverageWindow(samples, routeStartTimestamp, routeEndTi
 }
 
 
+export function summarizeArrivalComparability(routes, thresholdNm = 5) {
+  const items = Array.isArray(routes) ? routes : [];
+  const endpoints = items.map(route => {
+    const point = route?.points?.at?.(-1) ?? route?.points?.[route?.points?.length - 1];
+    return {
+      id: route?.id ?? null,
+      point,
+      etaMs: point?.time?.getTime?.(),
+    };
+  });
+  if (!endpoints.length) {
+    return { comparable: false, thresholdNm, maxSeparationNm: null, reason: 'no-route' };
+  }
+  if (endpoints.some(item => !item.point || !Number.isFinite(item.point.lat) || !Number.isFinite(item.point.lon) || !Number.isFinite(item.etaMs))) {
+    return { comparable: false, thresholdNm, maxSeparationNm: null, reason: 'missing-endpoint' };
+  }
+  if (endpoints.length === 1) {
+    return { comparable: true, thresholdNm, maxSeparationNm: 0, reason: null };
+  }
+
+  let maxSeparationNm = 0;
+  for (let i = 0; i < endpoints.length; i += 1) {
+    for (let j = i + 1; j < endpoints.length; j += 1) {
+      maxSeparationNm = Math.max(maxSeparationNm, haversineNm(endpoints[i].point, endpoints[j].point));
+    }
+  }
+  return {
+    comparable: maxSeparationNm <= thresholdNm,
+    thresholdNm,
+    maxSeparationNm,
+    reason: maxSeparationNm <= thresholdNm ? null : 'different-arrivals',
+  };
+}
+
+
 function nearestRank(values, q) {
   const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
   if (!sorted.length) return null;
