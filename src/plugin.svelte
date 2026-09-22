@@ -1,6 +1,7 @@
+<svelte:window on:keydown={handleWindowKeydown} />
 <div class="plugin__mobile-header">{title}</div>
 <section class="plugin__content">
-  <div class="plugin__title plugin__title--chevron-back" on:click={() => bcast.emit('rqstOpen', 'menu')}>{title}</div>
+  <div class="plugin__title plugin__title--chevron-back" role="button" tabindex="0" on:click={openWindyMenu} on:keydown={handleTitleKeydown}>{title}</div>
 
   <div class="topline">
     <div><strong>{formatLocalDateTime(currentTimestamp)}</strong><small>Temps Windy · heure locale</small></div>
@@ -18,7 +19,7 @@
     <div class="routes">
       {#each routes as route (route.id)}
         <div class="route-row">
-          <span class="dot" style={`background:${route.color}`}></span>
+          <span class={`route-line route-style-${route.styleIndex ?? 0}`} style={`--route-color:${route.color}`}></span>
           <div class="route-name"><strong title={route.name}>{route.name}</strong><small>{route.source} · {route.points.length} pts · {routeMeta(route)}</small></div>
           <button title={route.visible ? 'Masquer' : 'Afficher'} on:click={() => toggleRoute(route.id)}>{route.visible ? '👁' : '○'}</button>
           <button title="Supprimer" on:click={() => removeRoute(route.id)}>×</button>
@@ -27,8 +28,8 @@
     </div>
 
     <div class="main-actions">
-      <button class="analysis-button button button--variant-orange" on:click={() => analysisOpen = true}>Analyse complète</button>
-      <button class="analysis-button button" on:click={() => visualOpen = true}>Synthèse visuelle</button>
+      <button class="analysis-button button button--variant-orange" on:click={openAnalysis}>Analyse complète</button>
+      <button class="analysis-button button" on:click={openVisual}>Synthèse visuelle</button>
     </div>
     {#if routeAnalysis.length}<div class="map-risk-legend"><span class="risk-green"><i></i>accord</span><span class="risk-orange"><i></i>vigilance</span><span class="risk-red"><i></i>divergence</span><span class="risk-unknown"><i></i>sans couverture</span></div>{/if}
 
@@ -61,11 +62,11 @@
 </section>
 
 {#if analysisOpen}
-  <div class="analysis-overlay" role="dialog" aria-modal="true" aria-label="Analyse météo complète">
-    <div class="analysis-window">
+  <div class="analysis-overlay">
+    <div class="analysis-window" bind:this={analysisDialog} role="dialog" aria-modal="true" aria-labelledby="analysis-dialog-title" tabindex="-1">
       <header class="analysis-head">
-        <div><strong>Analyse météo complète</strong><small>Ocean Race Atlantique · routes importées · valeurs natives et météo Windy à l’instant T</small></div>
-        <button aria-label="Fermer l’analyse" on:click={() => analysisOpen = false}>×</button>
+        <div><strong id="analysis-dialog-title">Analyse météo complète</strong><small>Ocean Race Atlantique · routes importées · valeurs natives et météo Windy à l’instant T</small></div>
+        <button data-dialog-close aria-label="Fermer l’analyse" on:click={closeAnalysis}>×</button>
       </header>
 
       <div class="analysis-summary">
@@ -145,11 +146,11 @@
 {/if}
 
 {#if visualOpen}
-  <div class="analysis-overlay" role="dialog" aria-modal="true" aria-label="Synthèse météo visuelle">
-    <div class="analysis-window visual-window">
+  <div class="analysis-overlay">
+    <div class="analysis-window visual-window" bind:this={visualDialog} role="dialog" aria-modal="true" aria-labelledby="visual-dialog-title" tabindex="-1">
       <header class="analysis-head">
-        <div><strong>Synthèse météo visuelle</strong><small>Concordance ECMWF / GFS / ICON · heures locales</small></div>
-        <button aria-label="Fermer la synthèse" on:click={() => visualOpen = false}>×</button>
+        <div><strong id="visual-dialog-title">Synthèse météo visuelle</strong><small>Concordance ECMWF / GFS / ICON · heures locales</small></div>
+        <button data-dialog-close aria-label="Fermer la synthèse" on:click={closeVisual}>×</button>
       </header>
       {#if !routeAnalysis.length}
         <div class="visual-empty"><strong>Analyse multi-modèle nécessaire</strong><p>Ouvrez « Analyse complète », puis cliquez sur « Lancer l’analyse ».</p></div>
@@ -184,7 +185,7 @@
   import { map } from '@windy/map';
   import store from '@windy/store';
   import { getPointForecastData } from '@windy/fetch';
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, tick } from 'svelte';
   import config from './pluginConfig.ts';
   import { formatLocalDateTime } from './dateTime.js';
   import { buildRiskEvents, buildSampleTimes, selectCriticalEvents, summarizeArrivalComparability, summarizeCoverageWindow, summarizeRiskProfile, summarizeRouteDistanceWindow, summarizeWeatherSamples } from './analysisUtils.js';
@@ -198,12 +199,12 @@
   import { interpolateRoute } from './timeUtils';
   import { createPluginLifecycle, markerOpacityForPosition } from './lifecycleUtils.js';
   import { forecastValueAt, normalizeForecastSeries } from './weatherAdapter.js';
+  import { focusableElements, nextRouteStyleIndex, routeStyleForIndex, trapFocus } from './uiUtils.js';
 
   const { title } = config;
   const MAX_ROUTES = 6;
   const MAX_VISIBLE_ROUTES = 4;
   const MODELS = [{ id: 'ecmwf', label: 'ECMWF' }, { id: 'gfs', label: 'GFS' }, { id: 'icon', label: 'ICON' }];
-  const COLORS = ['#ff8a00', '#19b5e5', '#59d34f', '#e53935', '#a66ee0', '#f2c94c'];
   const weatherSeriesCache = new Map();
   let routes = [];
   let currentTimestamp = store.get('timestamp');
@@ -217,6 +218,75 @@
   let analysisProgress = 0;
   let routeAnalysis = [];
   let timestampSubscriptionId = null;
+  let analysisDialog = null;
+  let visualDialog = null;
+  let modalReturnFocus = null;
+
+  function openWindyMenu() { bcast.emit('rqstOpen', 'menu'); }
+
+  function handleTitleKeydown(event) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openWindyMenu();
+    }
+  }
+
+  function activeDialog() {
+    if (visualOpen) return visualDialog;
+    if (analysisOpen) return analysisDialog;
+    return null;
+  }
+
+  function rememberModalTrigger() {
+    modalReturnFocus = typeof document !== 'undefined' ? document.activeElement : null;
+  }
+
+  function focusDialog(dialog) {
+    const target = focusableElements(dialog)[0] || dialog;
+    target?.focus?.();
+  }
+
+  async function restoreModalFocus() {
+    const target = modalReturnFocus;
+    modalReturnFocus = null;
+    await tick();
+    if (target?.focus && target?.isConnected !== false) target.focus();
+  }
+
+  async function openAnalysis() {
+    rememberModalTrigger();
+    analysisOpen = true;
+    await tick();
+    focusDialog(analysisDialog);
+  }
+
+  function closeAnalysis() {
+    analysisOpen = false;
+    restoreModalFocus();
+  }
+
+  async function openVisual() {
+    rememberModalTrigger();
+    visualOpen = true;
+    await tick();
+    focusDialog(visualDialog);
+  }
+
+  function closeVisual() {
+    visualOpen = false;
+    restoreModalFocus();
+  }
+
+  function handleWindowKeydown(event) {
+    const dialog = activeDialog();
+    if (!dialog) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      if (visualOpen) closeVisual(); else closeAnalysis();
+      return;
+    }
+    trapFocus(event, dialog, typeof document !== 'undefined' ? document.activeElement : null);
+  }
 
   function boatIcon(color, cog = 0) {
     const heading = Math.round(cog || 0);
@@ -349,7 +419,7 @@
     const route = routes.find(r => r.id === event.routeId);
     const position = route ? interpolateRoute(route.points, event.timestamp) : null;
     if (position) map.panTo([position.lat, position.lon]);
-    visualOpen = false;
+    closeVisual();
   }
 
   function escapeHtml(value) {
@@ -446,7 +516,8 @@
 
   function createMapObjects(route) {
     const latLngs = route.points.map(p => [p.lat, p.lon]);
-    route.polyline = new L.Polyline(latLngs, { color: route.color, weight: 3, opacity: 0.82 }).addTo(map);
+    const style = routeStyleForIndex(route.styleIndex ?? 0);
+    route.polyline = new L.Polyline(latLngs, { color: route.color, weight: 3, opacity: 0.86, dashArray: route.dashArray ?? style.dashArray }).addTo(map);
     const p = route.position || route.points[0];
     route.marker = new L.Marker([p.lat, p.lon], { icon: boatIcon(route.color, p.cog), zIndexOffset: 500 }).addTo(map);
     route.marker.setOpacity(markerOpacityForPosition(p));
@@ -662,10 +733,12 @@
     for (const file of files) {
       try {
         const parsed = await parseRouteFile(file);
+        const styleIndex = nextRouteStyleIndex(routes);
+        const routeStyle = routeStyleForIndex(styleIndex);
         const route = {
           id: `${Date.now()}-${Math.random()}`,
           name: file.name, source: parsed.source, points: parsed.points,
-          color: COLORS[routes.length % COLORS.length], visible: routes.filter(r => r.visible).length < MAX_VISIBLE_ROUTES,
+          color: routeStyle.color, styleIndex, dashArray: routeStyle.dashArray, visible: routes.filter(r => r.visible).length < MAX_VISIBLE_ROUTES,
           nativeModel: parsed.nativeModel, cycle: parsed.cycle, qualityMeta: parsed.qualityMeta || {},
           position: interpolateRoute(parsed.points, currentTimestamp), weather: {},
           polyline: null, marker: null, riskLayers: [],
@@ -702,7 +775,6 @@
     invalidateFullAnalysis();
     destroyMapObjects(route);
     routes = routes.filter(r => r.id !== id);
-    routes.forEach((r, i) => { r.color = COLORS[i]; if (r.visible) { destroyMapObjects(r); createMapObjects(r); } });
     scheduleWeather();
   }
 
@@ -735,6 +807,7 @@
     routes.forEach(destroyMapObjects);
     analysisOpen = false;
     visualOpen = false;
+    modalReturnFocus = null;
     if (analysisStatus === 'running') {
       analysisStatus = 'idle';
       analysisProgress = 0;
@@ -771,12 +844,14 @@
   .empty { opacity:.8; line-height:1.5; }
   .routes { margin:8px 0 14px; }
   .main-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}.analysis-button { width:100%; margin:0; min-height:38px; cursor:pointer; }
-  .map-risk-legend{display:flex;gap:10px;flex-wrap:wrap;margin:-4px 0 12px;font-size:10px;opacity:.8}.map-risk-legend i{display:inline-block;width:16px;height:5px;background:var(--risk);margin-right:4px;vertical-align:middle}
-  .route-row { display:grid; grid-template-columns:18px minmax(0,1fr) 38px 38px; align-items:center; gap:6px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.12); }
+  .map-risk-legend{display:flex;gap:10px;flex-wrap:wrap;margin:-4px 0 12px;font-size:12px;opacity:.82}.map-risk-legend i{display:inline-block;width:16px;height:5px;background:var(--risk);margin-right:4px;vertical-align:middle}
+  .route-row { display:grid; grid-template-columns:30px minmax(0,1fr) 38px 38px; align-items:center; gap:6px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.12); }
   .route-name { min-width:0; }
   .route-name strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .route-row button { min-width:34px; min-height:34px; border:0; border-radius:6px; background:rgba(255,255,255,.08); color:inherit; cursor:pointer; }
   .dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
+  .route-line{width:25px;border-top:3px solid var(--route-color);display:inline-block}
+  .route-style-1,.route-style-3,.route-style-4{border-top-style:dashed}.route-style-2,.route-style-5{border-top-style:dotted}
   .dot.small { width:9px; height:9px; margin-right:5px; }
   .table-scroll { overflow-x:auto; }
   table { width:100%; border-collapse:collapse; font-size:11px; min-width:500px; }
@@ -784,7 +859,7 @@
   th { background:rgba(255,255,255,.08); font-size:10px; }
   td { white-space:pre-line; line-height:1.45; }
   .route-data { min-width:110px; }
-  .hint { opacity:.65; font-size:10px; line-height:1.4; margin-top:8px; }
+  .hint { opacity:.7; font-size:12px; line-height:1.4; margin-top:8px; }
   :global(.w4vr-boat-wrap) { background:none !important; border:none !important; }
   :global(.w4vr-boat) { width:18px; height:22px; line-height:0; transform-origin:50% 50%; filter:drop-shadow(0 1px 1px rgba(0,0,0,.75)); }
 
@@ -801,23 +876,26 @@
   .model-box strong{display:block;font-size:11px;margin-bottom:3px}
   .model-box span{display:block;font-size:11px;line-height:1.35;white-space:pre-line}
   .analysis-overlay{position:fixed;inset:54px 2vw 18px;z-index:10000;background:rgba(3,16,24,.72);display:flex;align-items:stretch;justify-content:center;padding:14px;backdrop-filter:blur(3px)}
+
+  .analysis-window:focus{outline:none}
+  button:focus-visible,.button:focus-visible,[role="button"]:focus-visible{outline:2px solid #fff;outline-offset:2px}
   .analysis-window{width:min(1180px,100%);overflow:auto;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:#102632;color:#f2f8fa;box-shadow:0 18px 60px rgba(0,0,0,.55);padding:14px}
   .analysis-head{display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:1px solid rgba(255,255,255,.14)}
   .analysis-head>div{min-width:0;flex:1}.analysis-head strong{display:block;font-size:18px}.analysis-head small{display:block;opacity:.68;margin-top:3px}
   .analysis-head button{width:38px;height:38px;border:0;border-radius:7px;background:rgba(255,255,255,.1);color:inherit;font-size:25px;cursor:pointer}
   .analysis-summary{display:grid;grid-template-columns:120px minmax(240px,1fr) minmax(180px,.6fr);gap:8px;margin:12px 0}
   .analysis-summary>div{padding:9px 11px;border:1px solid rgba(255,255,255,.13);border-radius:8px;background:rgba(255,255,255,.045)}
-  .analysis-summary span{display:block;font-size:10px;text-transform:uppercase;opacity:.65;margin-bottom:4px}.analysis-summary strong{font-size:13px}
+  .analysis-summary span{display:block;font-size:11px;text-transform:uppercase;opacity:.65;margin-bottom:4px}.analysis-summary strong{font-size:13px}
   .analysis-section{border:1px solid rgba(255,255,255,.13);border-radius:9px;background:rgba(255,255,255,.035);padding:10px;margin-bottom:10px}
   .analysis-section h3{font-size:13px;margin:0 0 9px}.analysis-table-scroll{overflow-x:auto}
-  .analysis-table{min-width:900px;font-size:10.5px}.analysis-table th{white-space:nowrap}.analysis-table td{white-space:pre-line}
+  .analysis-table{min-width:900px;font-size:12px}.analysis-table th{white-space:nowrap}.analysis-table td{white-space:pre-line}
   .analysis-columns{display:grid;grid-template-columns:minmax(320px,.85fr) minmax(460px,1.15fr);gap:10px}.analysis-columns .analysis-section{margin-bottom:0}
   .wind-bars{display:grid;gap:8px}.wind-row{display:grid;grid-template-columns:95px 1fr 58px;gap:8px;align-items:center;font-size:11px}
   .wind-row>div{height:9px;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden}.wind-row i{display:block;height:100%;border-radius:5px}
-  .wind-row strong{text-align:right;font-variant-numeric:tabular-nums}.analysis-hint,.analysis-foot{font-size:10px;opacity:.66;line-height:1.4}
+  .wind-row strong{text-align:right;font-variant-numeric:tabular-nums}.analysis-hint,.analysis-foot{font-size:12px;opacity:.66;line-height:1.4}
   .snapshot-table{min-width:560px}.analysis-foot{padding:11px 3px 2px}
   .full-weather{margin-top:10px}.full-weather-head{display:flex;justify-content:space-between;gap:12px;align-items:center}
-  .full-weather-head h3{margin:0 0 3px}.full-weather-head p{margin:0;font-size:10px;opacity:.66}.full-weather-head button{white-space:nowrap}
+  .full-weather-head h3{margin:0 0 3px}.full-weather-head p{margin:0;font-size:12px;opacity:.66}.full-weather-head button{white-space:nowrap}
   .full-weather-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
   .progress{height:7px;margin:10px 0;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden}.progress i{display:block;height:100%;background:#ff8a00;transition:width .2s}
   .full-weather-table{min-width:880px}.full-weather-table small{font-weight:400;opacity:.65}.analysis-error{color:#ff8d8d;font-size:11px}
@@ -827,11 +905,11 @@
   .global-alert strong,.global-alert span{display:block}.global-alert span{font-size:11px;opacity:.72;margin-top:2px}
   .risk-green{--risk:#31c96b}.risk-orange{--risk:#ff9f1a}.risk-red{--risk:#ef4444}.risk-unknown{--risk:#8a9ba3}
   .visual-routes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.visual-route{border-left:5px solid var(--risk);border-radius:8px;background:rgba(255,255,255,.05);padding:10px}
-  .visual-route header{display:flex;justify-content:space-between;gap:7px;align-items:center}.visual-route header span{font-size:10px;border-radius:10px;padding:3px 7px;background:color-mix(in srgb,var(--risk) 18%,transparent)}
-  .visual-route p{font-size:11px;margin:7px 0 3px}.visual-route small{opacity:.65}.risk-meter{height:7px;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden;margin:9px 0}.risk-meter i{display:block;height:100%;background:var(--risk)}
+  .visual-route header{display:flex;justify-content:space-between;gap:7px;align-items:center}.visual-route header span{font-size:11px;border-radius:10px;padding:3px 7px;background:color-mix(in srgb,var(--risk) 18%,transparent)}
+  .visual-route p{font-size:12px;margin:7px 0 3px}.visual-route small{opacity:.65}.risk-meter{height:7px;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden;margin:9px 0}.risk-meter i{display:block;height:100%;background:var(--risk)}
   .visual-timeline,.quality-list{margin-top:14px}.visual-timeline h3,.quality-list h3{font-size:13px;margin:0 0 8px}.timeline-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
-  .timeline-list button{display:grid;grid-template-columns:18px 90px 1fr;align-items:center;gap:7px;text-align:left;border:0;border-radius:7px;padding:9px;background:rgba(255,255,255,.055);color:inherit;cursor:pointer}.timeline-list button span{font-size:10px;opacity:.7}
-  .quality-list>div{display:grid;grid-template-columns:150px 1fr;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:11px}.quality-list span{opacity:.7}.visual-actions{text-align:right;margin-top:14px}
+  .timeline-list button{display:grid;grid-template-columns:18px 90px 1fr;align-items:center;gap:7px;text-align:left;border:0;border-radius:7px;padding:9px;background:rgba(255,255,255,.055);color:inherit;cursor:pointer}.timeline-list button span{font-size:11px;opacity:.7}
+  .quality-list>div{display:grid;grid-template-columns:150px 1fr;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:12px}.quality-list span{opacity:.7}.visual-actions{text-align:right;margin-top:14px}
   @media (max-width:420px){
     .models-grid{grid-template-columns:1fr}
     .router-strip{grid-template-columns:1fr}
@@ -839,7 +917,7 @@
   @media (max-width:780px){
     .plugin__content{padding:0 10px 28px}
     button,.button,.route-row button{min-height:44px;touch-action:manipulation}
-    .route-row{grid-template-columns:18px minmax(0,1fr) 44px 44px;gap:8px;padding:9px 0}
+    .route-row{grid-template-columns:30px minmax(0,1fr) 44px 44px;gap:8px;padding:9px 0}
     .analysis-overlay{inset:44px 0 0;padding:0}.analysis-window{border-radius:0;border-left:0;border-right:0;padding:12px;overscroll-behavior:contain}
     .analysis-head{position:sticky;top:-12px;z-index:4;background:#102632;padding-top:12px}
     .analysis-head button{width:44px;height:44px}
@@ -847,6 +925,8 @@
     .visual-routes{grid-template-columns:1fr 1fr}.timeline-list{grid-template-columns:1fr}
     .analysis-table-scroll{-webkit-overflow-scrolling:touch;scrollbar-width:thin}
     .analysis-table th:first-child,.analysis-table td:first-child{position:sticky;left:0;z-index:2;background:#17313d}
+    .analysis-table,.analysis-hint,.analysis-foot,.hint,.full-weather-head p,.visual-route p,.quality-list>div,.timeline-list button span{font-size:14px}
+    .analysis-table th{font-size:13px}
     .full-weather-head{align-items:stretch;flex-direction:column}.full-weather-head button{width:100%}
     .timeline-list button{min-height:52px;grid-template-columns:18px 100px 1fr}
   }
