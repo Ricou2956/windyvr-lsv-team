@@ -20,7 +20,7 @@
       {#each routes as route (route.id)}
         <div class="route-row">
           <span class={`route-line route-style-${route.styleIndex ?? 0}`} style={`--route-color:${route.color}`}></span>
-          <div class="route-name"><strong title={route.name}>{route.name}</strong><small>{route.source} · {route.points.length} pts · {routeMeta(route)}</small></div>
+          <div class="route-name"><strong title={route.name}>{route.name}</strong><small><select class="route-source-select" aria-label={`Source de ${route.name}`} value={route.source} on:change={(event) => updateRouteSource(route.id, event.currentTarget.value)}>{#each ROUTE_SOURCES as source}<option value={source}>{source}</option>{/each}</select> · {route.points.length} pts · {routeMeta(route)}</small></div>
           <button title={route.visible ? 'Masquer' : 'Afficher'} on:click={() => toggleRoute(route.id)}>{route.visible ? '👁' : '○'}</button>
           <button title="Supprimer" on:click={() => removeRoute(route.id)}>×</button>
         </div>
@@ -118,14 +118,15 @@
           <div><h3>Analyse ECMWF / GFS / ICON le long des routes</h3><p>Pas adaptatif de 30 min à 12 h, complété aux changements importants de route.</p></div>
           <div class="full-weather-actions">
             <button class="button" disabled={analysisStatus === 'running' || !routes.length} on:click={exportDiagnostics}>Diagnostic JSON</button>
-            <button class="button button--variant-orange" disabled={analysisStatus === 'running'} on:click={runFullWeatherAnalysis}>
-              {analysisStatus === 'running' ? `Analyse ${analysisProgress}%` : analysisStatus === 'done' ? 'Actualiser' : 'Lancer l’analyse'}
+            <button class="button button--variant-orange" disabled={analysisStatus === 'running'} on:click={() => runFullWeatherAnalysis(analysisStatus === 'done')}>
+              {analysisStatus === 'running' ? `Analyse ${analysisProgress}%` : analysisStatus === 'done' ? 'Actualiser' : analysisStatus === 'partial' ? 'Compléter l’analyse' : 'Lancer l’analyse'}
             </button>
           </div>
         </div>
         {#if analysisStatus === 'running'}<div class="progress"><i style={`width:${analysisProgress}%`}></i></div>{/if}
         {#if analysisStatus === 'error'}<p class="analysis-error">L’analyse n’a pas pu être terminée. Réessayez dans quelques instants.</p>{/if}
         {#if routeAnalysis.length}
+          {#if routeAnalysis.length !== routes.length}<p class="analysis-hint analysis-partial">Analyse partielle : {routeAnalysis.length}/{routes.length} route(s) déjà calculée(s). « Compléter l’analyse » ne calcule que les routes manquantes.</p>{/if}
           <div class="analysis-table-scroll"><table class="analysis-table full-weather-table">
             <thead><tr><th>Route</th>{#each MODELS as model}<th>{model.label}<br><small>moy./max · couverture</small></th>{/each}<th>Fenêtre réellement analysée</th><th>Divergence maximale</th></tr></thead>
             <tbody>{#each routeAnalysis as item}<tr>
@@ -188,14 +189,14 @@
   import { onDestroy, onMount, tick } from 'svelte';
   import config from './pluginConfig.ts';
   import { formatLocalDateTime } from './dateTime.js';
-  import { buildRiskEvents, buildSampleTimes, selectCriticalEvents, summarizeArrivalComparability, summarizeCoverageWindow, summarizeRiskProfile, summarizeRouteDistanceWindow, summarizeWeatherSamples } from './analysisUtils.js';
+  import { buildRiskEvents, buildSampleTimes, pendingAnalysisRouteIds, retainAnalysisForRoutes, routeGeometryBetween, selectCriticalEvents, summarizeArrivalComparability, summarizeCoverageWindow, summarizeRiskProfile, summarizeRouteDistanceWindow, summarizeWeatherSamples } from './analysisUtils.js';
   import { assessRouteQuality } from './qualityUtils.js';
   import {
     buildDiagnosticsReport, finishAnalysisDiagnostics, recordWeatherCacheHit, recordWeatherCacheMiss,
     recordWeatherCall, recordWeatherError, recordWeatherRequest, recordWeatherResponse,
     recordWeatherSeriesUse, recordWeatherUnavailable, startAnalysisDiagnostics,
   } from './diagnostics.js';
-  import { parseRouteFile } from './routeParser';
+  import { inferRouteMetadata, parseRouteFile, ROUTE_SOURCES } from './routeParser';
   import { interpolateRoute } from './timeUtils';
   import { createPluginLifecycle, markerOpacityForPosition } from './lifecycleUtils.js';
   import { forecastValueAt, forecastWindowStatus, normalizeForecastSeries } from './weatherAdapter.js';
@@ -376,12 +377,32 @@
     return `${formatLocalDateTime(value.timestamp)}\nΔ vent ${value.speedSpread.toFixed(1)} kt · Δ dir ${Math.round(value.directionSpread)}°`;
   }
 
-  function invalidateFullAnalysis() {
+  function analysisStateFromCoverage() {
+    if (!routeAnalysis.length) return 'idle';
+    return routeAnalysis.length === routes.length ? 'done' : 'partial';
+  }
+
+  function refreshEtaComparisonMetadata(items = routeAnalysis) {
+    const comparison = summarizeArrivalComparability(routes, 5);
+    const earliestEta = comparison.comparable && routes.length ? Math.min(...routes.map(route => route.points.at(-1).time.getTime())) : null;
+    return items.map(item => {
+      const route = routes.find(candidate => candidate.id === item.routeId);
+      if (!route) return item;
+      const etaMs = route.points.at(-1).time.getTime();
+      return {
+        ...item, source: route.source, label: routeLabel(route), color: route.color,
+        eta: formatLocalDateTime(etaMs), etaComparable: comparison.comparable,
+        etaGap: comparison.comparable ? (etaMs === earliestEta ? 'ETA la plus tôt' : `+${fmtEtaDelta(etaMs - earliestEta)}`) : 'non comparable · arrivée différente',
+        arrivalThresholdNm: comparison.thresholdNm, arrivalMaxSeparationNm: comparison.maxSeparationNm,
+      };
+    });
+  }
+
+  function markAnalysisPartial() {
     analysisGeneration += 1;
-    analysisStatus = 'idle';
     analysisProgress = 0;
-    routeAnalysis = [];
-    routes.forEach(destroyRiskLayers);
+    routeAnalysis = refreshEtaComparisonMetadata(retainAnalysisForRoutes(routeAnalysis, routes));
+    analysisStatus = analysisStateFromCoverage();
   }
 
   function routeLabel(route) {
@@ -543,9 +564,9 @@
     const colors = { green: '#31c96b', orange: '#ff9f1a', red: '#ef4444', unknown: '#8a9ba3' };
     route.riskLayers = [];
     for (let i = 0; i < events.length - 1; i += 1) {
-      const a = interpolateRoute(route.points, events[i].timestamp), b = interpolateRoute(route.points, events[i + 1].timestamp);
-      if (!a || !b) continue;
-      route.riskLayers.push(new L.Polyline([[a.lat, a.lon], [b.lat, b.lon]], { color: colors[events[i].level], weight: 6, opacity: .9 }).addTo(map));
+      const geometry = routeGeometryBetween(route.points, events[i].timestamp, events[i + 1].timestamp);
+      if (geometry.length < 2) continue;
+      route.riskLayers.push(new L.Polyline(geometry, { color: colors[events[i].level], weight: 6, opacity: .9 }).addTo(map));
     }
   }
 
@@ -667,15 +688,18 @@
     routes = [...routes];
   }
 
-  async function runFullWeatherAnalysis() {
+  async function runFullWeatherAnalysis(forceAll = false) {
     if (!routes.length || analysisStatus === 'running') return;
     const token = ++analysisGeneration;
-    const selectedRoutes = [...routes];
+    const pendingIds = new Set(pendingAnalysisRouteIds(routes, routeAnalysis, forceAll));
+    const selectedRoutes = routes.filter(route => pendingIds.has(route.id));
+    if (!selectedRoutes.length) return;
     const jobs = [];
     const sampleCounts = new Map();
     const diagnosticSampleCounts = [];
-    analysisStatus = 'running'; analysisProgress = 0; routeAnalysis = [];
-    routes.forEach(destroyRiskLayers);
+    const preservedAnalysis = forceAll ? [] : retainAnalysisForRoutes(routeAnalysis, routes).filter(item => !pendingIds.has(item.routeId));
+    analysisStatus = 'running'; analysisProgress = 0;
+    selectedRoutes.forEach(destroyRiskLayers);
     for (const [routeIndex, route] of selectedRoutes.entries()) {
       const times = buildSampleTimes(route.points);
       sampleCounts.set(route.id, times.length);
@@ -703,9 +727,7 @@
         analysisProgress = Math.round(Math.min(jobs.length, i + batch.length) / jobs.length * 100);
       }
       if (token !== analysisGeneration) { finishAnalysisDiagnostics('cancelled'); return; }
-      const arrivalComparison = summarizeArrivalComparability(selectedRoutes, 5);
-      const earliestEta = arrivalComparison.comparable ? Math.min(...selectedRoutes.map(route => route.points.at(-1).time.getTime())) : null;
-      routeAnalysis = selectedRoutes.map(route => {
+      const calculatedItems = selectedRoutes.map(route => {
         const routeSamples = samples.filter(s => s.routeId === route.id);
         const etaMs = route.points.at(-1).time.getTime();
         const routeStartMs = route.points[0].time.getTime();
@@ -717,17 +739,13 @@
         const riskProfile = summarizeRiskProfile(riskEvents, coverageWindow);
         return {
           routeId: route.id, source: route.source, label: routeLabel(route), color: route.color,
-          sampleCount: sampleCounts.get(route.id), eta: formatLocalDateTime(etaMs),
-          etaComparable: arrivalComparison.comparable,
-          etaGap: arrivalComparison.comparable ? (etaMs === earliestEta ? 'ETA la plus tôt' : `+${fmtEtaDelta(etaMs - earliestEta)}`) : 'non comparable · arrivée différente',
-          arrivalThresholdNm: arrivalComparison.thresholdNm,
-          arrivalMaxSeparationNm: arrivalComparison.maxSeparationNm,
-          routeWindow,
+          sampleCount: sampleCounts.get(route.id), routeWindow,
           quality: assessRouteQuality(route), coverageWindow, summary, riskEvents, riskProfile,
         };
       });
+      routeAnalysis = refreshEtaComparisonMetadata([...preservedAnalysis, ...calculatedItems]);
       applyRiskLayers();
-      analysisStatus = 'done'; analysisProgress = 100;
+      analysisStatus = analysisStateFromCoverage(); analysisProgress = 100;
       finishAnalysisDiagnostics('done');
     } catch (error) {
       finishAnalysisDiagnostics('error');
@@ -754,7 +772,7 @@
     const warnings = [];
     const errors = [];
     message = '';
-    if (files.length) invalidateFullAnalysis();
+    if (files.length && analysisStatus === 'running') analysisGeneration += 1;
     for (const file of files) {
       try {
         const parsed = await parseRouteFile(file);
@@ -771,6 +789,7 @@
         route.summary = summarizeRoute(route);
         if (route.visible) createMapObjects(route);
         routes = [...routes, route];
+        if (routeAnalysis.length) markAnalysisPartial();
         const discardedInvalidPositions = Number(parsed.qualityMeta?.discardedInvalidPositions || 0);
         if (discardedInvalidPositions > 0) warnings.push(`${file.name}: ${discardedInvalidPositions} position(s) invalide(s) écartée(s) à l’import.`);
       } catch (error) {
@@ -799,10 +818,25 @@
 
   function removeRoute(id) {
     const route = routes.find(r => r.id === id); if (!route) return;
-    invalidateFullAnalysis();
+    analysisGeneration += 1;
     destroyMapObjects(route);
     routes = routes.filter(r => r.id !== id);
+    routeAnalysis = refreshEtaComparisonMetadata(retainAnalysisForRoutes(routeAnalysis, routes));
+    analysisStatus = analysisStateFromCoverage();
+    analysisProgress = analysisStatus === 'done' ? 100 : 0;
+    applyRiskLayers();
     scheduleWeather();
+  }
+
+  function updateRouteSource(id, source) {
+    const route = routes.find(r => r.id === id);
+    if (!route || !ROUTE_SOURCES.includes(source)) return;
+    route.source = source;
+    const metadata = inferRouteMetadata(route.name, source);
+    route.nativeModel = metadata.nativeModel;
+    route.cycle = metadata.cycle;
+    routeAnalysis = refreshEtaComparisonMetadata(routeAnalysis);
+    routes = [...routes];
   }
 
   function subscribeTimestamp() {
@@ -836,8 +870,8 @@
     visualOpen = false;
     modalReturnFocus = null;
     if (analysisStatus === 'running') {
-      analysisStatus = 'idle';
-      analysisProgress = 0;
+      analysisStatus = analysisStateFromCoverage();
+      analysisProgress = analysisStatus === 'done' ? 100 : 0;
     }
   }
 
@@ -875,6 +909,9 @@
   .route-row { display:grid; grid-template-columns:30px minmax(0,1fr) 38px 38px; align-items:center; gap:6px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.12); }
   .route-name { min-width:0; }
   .route-name strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .route-source-select { max-width:105px; border:0; border-bottom:1px dotted rgba(255,255,255,.45); background:transparent; color:inherit; font:inherit; padding:0 12px 0 0; }
+  .route-source-select option { color:#111; background:#fff; }
+  .analysis-partial { margin:4px 0 8px; padding:6px 8px; border-radius:5px; background:rgba(255,159,26,.12); }
   .route-row button { min-width:34px; min-height:34px; border:0; border-radius:6px; background:rgba(255,255,255,.08); color:inherit; cursor:pointer; }
   .dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
   .route-line{width:25px;border-top:3px solid var(--route-color);display:inline-block}

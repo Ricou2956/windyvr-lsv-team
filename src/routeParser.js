@@ -147,6 +147,34 @@ const aliases = {
   pressure: ['pressure', 'pression'],
 };
 
+export const ROUTE_SOURCES = ['Dorado', 'Avalon', 'VRZen', 'eSail4VR', 'ZEZO', 'CSV routeur', 'GPX routeur'];
+
+export function detectCsvSource({ headers = [], sampleText = '' } = {}) {
+  const headerSet = new Set(headers.map(norm));
+  const text = String(sampleText || '');
+  const has = name => headerSet.has(norm(name));
+
+  if (has('SailSet') || (has('Heading') && has('Latitude'))) return 'Avalon';
+  if (has('DateHeure(UTC)') && has('Voile') && has('Speed(kt)')) return 'ZEZO';
+  // Les exports VRZen attestés exposent une distance restante (DTF) et des champs vent/navigation.
+  if (has('DTF') && (has('TWA') || has('TWS')) && (has('COG') || has('Heading') || has('HDG'))) return 'VRZen';
+  if (/\b(?:vrzen|reverse\s*odyssey)\b/i.test(text)) return 'VRZen';
+  if (/\b(?:zezo|routemarins)\b/i.test(text)) return 'ZEZO';
+  if (/\bavalon\b/i.test(text)) return 'Avalon';
+  if (/\be-?sail(?:4vr)?\b/i.test(text)) return 'eSail4VR';
+  if (/\bdorado\b/i.test(text)) return 'Dorado';
+  return 'CSV routeur';
+}
+
+function sourceFromFileName(name = '') {
+  if (/vrzen|vr_?zen|reverseody/i.test(name)) return 'VRZen';
+  if (/zezo|routemarins/i.test(name)) return 'ZEZO';
+  if (/avalon/i.test(name)) return 'Avalon';
+  if (/esail|e-sail/i.test(name)) return 'eSail4VR';
+  if (/dorado/i.test(name)) return 'Dorado';
+  return null;
+}
+
 function getCol(headers, names) {
   const normalized = headers.map(norm);
   for (const name of names) {
@@ -230,9 +258,9 @@ export function parseCsv(text, { now = new Date() } = {}) {
   const idx = Object.fromEntries(Object.entries(aliases).map(([k, v]) => [k, getCol(headers, v)]));
   if (idx.lat < 0 || idx.lon < 0 || idx.time < 0) throw new Error('Colonnes date/latitude/longitude introuvables.');
 
-  const headerSet = new Set(headers.map(norm));
-  const isAvalon = headerSet.has('sailset') || (headerSet.has('heading') && headerSet.has('latitude'));
-  const isZezo = !isAvalon && headerSet.has(norm('DateHeure(UTC)')) && headerSet.has(norm('Voile')) && headerSet.has(norm('Speed(kt)'));
+  const detectedSource = detectCsvSource({ headers, sampleText: lines.slice(0, Math.min(lines.length, 8)).join(' ') });
+  const isAvalon = detectedSource === 'Avalon';
+  const isZezo = detectedSource === 'ZEZO';
 
   let year = null;
   let inferredYear = null;
@@ -283,7 +311,7 @@ export function parseCsv(text, { now = new Date() } = {}) {
   }
   const finalized = finalize(points);
   return {
-    source: isZezo ? 'ZEZO' : (isAvalon ? 'Avalon' : 'CSV routeur'),
+    source: detectedSource,
     ...finalized,
     qualityMeta: {
       ...finalized.qualityMeta,
@@ -399,24 +427,12 @@ export async function parseRouteFile(file) {
   const text = await file.text();
   if (ext === 'csv') {
     const parsed = parseCsv(text);
-    const name = file.name || '';
-    if (/vrzen|vr_?zen|reverseody/i.test(name)) parsed.source = 'VRZen';
-    else if (/zezo/i.test(name)) parsed.source = 'ZEZO';
-    else if (/avalon/i.test(name)) parsed.source = 'Avalon';
-    else if (/esail|e-sail/i.test(name)) parsed.source = 'eSail4VR';
-    else if (/dorado/i.test(name)) parsed.source = 'Dorado';
+    if (parsed.source === 'CSV routeur') parsed.source = sourceFromFileName(file.name || '') || parsed.source;
     return { ...parsed, ...inferRouteMetadata(file.name, parsed.source) };
   }
   if (ext === 'gpx') {
     const parsed = parseGpx(text);
-    const name = file.name || '';
-    if (parsed.source === 'GPX routeur') {
-      if (/vrzen|vr_?zen|reverseody/i.test(name)) parsed.source = 'VRZen';
-      else if (/zezo/i.test(name)) parsed.source = 'ZEZO';
-      else if (/avalon/i.test(name)) parsed.source = 'Avalon';
-      else if (/esail|e-sail/i.test(name)) parsed.source = 'eSail4VR';
-      else if (/dorado/i.test(name)) parsed.source = 'Dorado';
-    }
+    if (parsed.source === 'GPX routeur') parsed.source = sourceFromFileName(file.name || '') || parsed.source;
     return { ...parsed, ...inferRouteMetadata(file.name, parsed.source) };
   }
   throw new Error('Format non pris en charge : utilisez .csv ou .gpx.');

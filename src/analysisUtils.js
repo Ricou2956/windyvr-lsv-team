@@ -1,3 +1,5 @@
+import { interpolateRoute } from './timeUtils.js';
+
 export function samplingIntervalHours(durationMs) {
   const hours = durationMs / 3600000;
   if (hours < 12) return 0.5;
@@ -409,3 +411,37 @@ export function selectCriticalEvents(routeItems, limit = 12) {
 
   return selected.sort((a, b) => a.timestamp - b.timestamp);
 }
+
+export function routeGeometryBetween(points, startTimestamp, endTimestamp) {
+  if (!Array.isArray(points) || points.length < 2) return [];
+  const start = Number(startTimestamp);
+  const end = Number(endTimestamp);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return [];
+  const firstTs = points[0]?.time?.getTime?.();
+  const lastTs = points.at(-1)?.time?.getTime?.();
+  if (!Number.isFinite(firstTs) || !Number.isFinite(lastTs) || end < firstTs || start > lastTs) return [];
+  const clippedStart = Math.max(start, firstTs);
+  const clippedEnd = Math.min(end, lastTs);
+  const startPoint = interpolateRoute(points, clippedStart);
+  const endPoint = interpolateRoute(points, clippedEnd);
+  if (!startPoint || !endPoint) return [];
+  const geometry = [[startPoint.lat, startPoint.lon]];
+  for (const point of points) {
+    const ts = point?.time?.getTime?.();
+    if (Number.isFinite(ts) && ts > clippedStart && ts < clippedEnd) geometry.push([point.lat, point.lon]);
+  }
+  const last = geometry.at(-1);
+  if (!last || last[0] !== endPoint.lat || last[1] !== endPoint.lon) geometry.push([endPoint.lat, endPoint.lon]);
+  return geometry;
+}
+
+export function pendingAnalysisRouteIds(routes, existingAnalysis, forceAll = false) {
+  const ids = new Set((existingAnalysis || []).map(item => item.routeId));
+  return (routes || []).filter(route => forceAll || !ids.has(route.id)).map(route => route.id);
+}
+
+export function retainAnalysisForRoutes(existingAnalysis, routes) {
+  const ids = new Set((routes || []).map(route => route.id));
+  return (existingAnalysis || []).filter(item => ids.has(item.routeId));
+}
+

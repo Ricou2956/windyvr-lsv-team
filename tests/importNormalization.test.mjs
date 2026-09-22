@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   analyzeTemporalOrder,
+  detectCsvSource,
   detectGpxSource,
   inferClosestAvalonYear,
   metersPerSecondToKnots,
@@ -141,5 +142,12 @@ assert.equal(parsedInvalidCoordinates.points.some(point => Math.abs(point.lat) >
 
 assert.equal(detectGpxSource({ creator: 'RouteMarins', metaText: 'RouteMarins' }), 'ZEZO');
 assert.equal(detectGpxSource({ creator: 'MapSource', metaText: 'VRZEN', descSample: 'HDG:260 TWA:-50' }), 'VRZen');
+
+assert.equal(detectCsvSource({ headers: ['Date', 'Heading', 'Latitude', 'Longitude', 'Speed', 'SailSet'] }), 'Avalon');
+assert.equal(detectCsvSource({ headers: ['DateHeure(UTC)', 'Latitude', 'Longitude', 'Speed(kt)', 'Voile'] }), 'ZEZO');
+assert.equal(detectCsvSource({ headers: ['timestamp', 'lat', 'lon', 'COG', 'DTF', 'TWA', 'TWS'] }), 'VRZen');
+const renamedVrzenCsv = ['timestamp;lat;lon;COG;DTF;TWA;TWS', '2026-09-21T00:00:00Z;48;-5;180;500;40;15', '2026-09-21T01:00:00Z;48.1;-4.9;181;490;41;16'].join('\n');
+assert.equal(parseCsv(renamedVrzenCsv).source, 'VRZen');
+assert.equal(detectCsvSource({ headers: ['timestamp', 'lat', 'lon'], sampleText: 'Export Dorado ECMWF' }), 'Dorado');
 
 console.log('import normalization tests: OK');

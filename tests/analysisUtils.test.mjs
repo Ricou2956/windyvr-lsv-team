@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { angularDifference, buildRiskEvents, buildSampleTimes, samplingIntervalHours, selectCriticalEvents, summarizeArrivalComparability, summarizeCoverageWindow, summarizeRiskProfile, summarizeRouteDistanceWindow, summarizeWeatherSamples } from '../src/analysisUtils.js';
+import { angularDifference, buildRiskEvents, buildSampleTimes, pendingAnalysisRouteIds, retainAnalysisForRoutes, routeGeometryBetween, samplingIntervalHours, selectCriticalEvents, summarizeArrivalComparability, summarizeCoverageWindow, summarizeRiskProfile, summarizeRouteDistanceWindow, summarizeWeatherSamples } from '../src/analysisUtils.js';
 
 const points = [{ time: new Date('2026-09-02T10:00:00Z') }, { time: new Date('2026-09-03T10:00:00Z') }];
 assert.deepEqual(buildSampleTimes(points), [Date.parse('2026-09-02T10:00:00Z'), Date.parse('2026-09-02T13:00:00Z'), Date.parse('2026-09-02T16:00:00Z'), Date.parse('2026-09-02T19:00:00Z'), Date.parse('2026-09-02T22:00:00Z'), Date.parse('2026-09-03T01:00:00Z'), Date.parse('2026-09-03T04:00:00Z'), Date.parse('2026-09-03T07:00:00Z'), Date.parse('2026-09-03T10:00:00Z')]);
@@ -119,5 +119,22 @@ const differentArrivals = summarizeArrivalComparability([arrivalA, arrivalC], 5)
 assert.equal(differentArrivals.comparable, false);
 assert.equal(differentArrivals.reason, 'different-arrivals');
 assert.ok(differentArrivals.maxSeparationNm > 5);
+
+const curvedRoute = [
+  { time: new Date('2026-09-21T00:00:00Z'), lat: 0, lon: 0 },
+  { time: new Date('2026-09-21T01:00:00Z'), lat: 1, lon: 1 },
+  { time: new Date('2026-09-21T02:00:00Z'), lat: 0, lon: 2 },
+];
+const geometry = routeGeometryBetween(curvedRoute, Date.parse('2026-09-21T00:30:00Z'), Date.parse('2026-09-21T01:30:00Z'));
+assert.equal(geometry.length, 3);
+assert.deepEqual(geometry[1], [1, 1]);
+assert.ok(Math.abs(geometry[0][0] - 0.5) < 1e-9);
+assert.ok(Math.abs(geometry[2][0] - 0.5) < 1e-9);
+
+const analysisRoutes = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+const existingAnalysis = [{ routeId: 'a' }, { routeId: 'c' }, { routeId: 'gone' }];
+assert.deepEqual(pendingAnalysisRouteIds(analysisRoutes, existingAnalysis, false), ['b']);
+assert.deepEqual(pendingAnalysisRouteIds(analysisRoutes, existingAnalysis, true), ['a', 'b', 'c']);
+assert.deepEqual(retainAnalysisForRoutes(existingAnalysis, analysisRoutes).map(item => item.routeId), ['a', 'c']);
 
 console.log('weather analysis tests: OK');
