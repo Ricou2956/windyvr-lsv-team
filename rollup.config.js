@@ -3,7 +3,6 @@ import commonjs from '@rollup/plugin-commonjs';
 import terser from '@rollup/plugin-terser';
 import serve from 'rollup-plugin-serve';
 import rollupSvelte from 'rollup-plugin-svelte';
-import rollupCleanup from 'rollup-plugin-cleanup';
 import { transformCodeToESMPlugin, keyPEM, certificatePEM } from '@windycom/plugin-devtools';
 
 export default {
@@ -13,10 +12,9 @@ export default {
     {
       file: 'dist/plugin.min.js',
       format: 'module',
-      plugins: [rollupCleanup({ comments: 'none' }), terser()],
+      plugins: [terser({ format: { comments: false } })],
     },
   ],
-  onwarn: () => {},
   external: id => id.startsWith('@windy/'),
   watch: { include: ['src/**'], exclude: 'node_modules/**', clearScreen: false },
   plugins: [

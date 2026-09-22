@@ -84,8 +84,8 @@
               {#each routes as route}
                 <tr>
                   <td><span class="dot small" style={`background:${route.color}`}></span>{route.source}</td>
-                  <td>{routeMeta(route)}</td><td>{route.points.length}</td><td>{summarizeRoute(route).start}<br>→ {summarizeRoute(route).end}</td><td>{summarizeRoute(route).duration}</td>
-                  <td>{summarizeRoute(route).distance}</td><td>{summarizeRoute(route).avgSog}</td><td>{summarizeRoute(route).wind}</td><td>{summarizeRoute(route).lightWind}</td><td>{summarizeRoute(route).maneuvers}</td>
+                  <td>{routeMeta(route)}</td><td>{route.points.length}</td><td>{route.summary.start}<br>→ {route.summary.end}</td><td>{route.summary.duration}</td>
+                  <td>{route.summary.distance}</td><td>{route.summary.avgSog}</td><td>{route.summary.wind}</td><td>{route.summary.lightWind}</td><td>{route.summary.maneuvers}</td>
                 </tr>
               {/each}
             </tbody>
@@ -98,7 +98,7 @@
           <h3>Vent natif moyen par route</h3>
           <div class="wind-bars">
             {#each routes as route}
-              <div class="wind-row"><span>{route.source}</span><div><i style={`width:${summarizeRoute(route).windBar}%;background:${route.color}`}></i></div><strong>{summarizeRoute(route).avgTwsLabel}</strong></div>
+              <div class="wind-row"><span>{route.source}</span><div><i style={`width:${route.summary.windBar}%;background:${route.color}`}></i></div><strong>{route.summary.avgTwsLabel}</strong></div>
             {/each}
           </div>
           <p class="analysis-hint">Le vent natif provient du routeur lorsque le fichier le contient. « n/a » signifie que la route ne fournit pas de TWS.</p>
@@ -200,6 +200,7 @@
   import { createPluginLifecycle, markerOpacityForPosition } from './lifecycleUtils.js';
   import { forecastValueAt, normalizeForecastSeries } from './weatherAdapter.js';
   import { focusableElements, nextRouteStyleIndex, routeStyleForIndex, trapFocus } from './uiUtils.js';
+  import { buildImportMessage, selectFilesForImport } from './importUtils.js';
 
   const { title } = config;
   const MAX_ROUTES = 6;
@@ -299,21 +300,6 @@
         </svg>
       </div>`,
     });
-  }
-
-  function routeSummary(p) {
-    if (!p) return '–';
-    if (p.outOfRange) return 'hors plage';
-    const fdeg = v => Number.isFinite(v) ? `${Math.round(v)}°` : '-';
-    const fkt = v => Number.isFinite(v) ? `${v.toFixed(1)} kt` : '-';
-    return [
-      `COG ${fdeg(p.cog)}`,
-      `SOG ${fkt(p.sog)}`,
-      `TWS ${fkt(p.tws)}`,
-      `TWD ${fdeg(p.twd)}`,
-      `TWA ${fdeg(p.twa)}`,
-      `Voile ${p.sail || '-'}`,
-    ].join('\n');
   }
 
   function compactRouteSummary(p) {
@@ -427,8 +413,14 @@
   }
 
   function exportReport() {
-    const rows = routeAnalysis.map(item => { const risk = routeRisk(item); return `<tr><td>${escapeHtml(item.label)}</td><td class="${risk.level}">${escapeHtml(risk.label)}</td><td>${escapeHtml(risk.detail)}</td><td>${escapeHtml(routeWindowLabel(item.routeWindow))}</td><td>${escapeHtml(item.eta)}<br>${escapeHtml(item.etaGap)}</td><td>${escapeHtml(item.quality.issues.join(' · ') || 'Fichier cohérent')}</td></tr>`; }).join('');
-    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Synthèse WindyVR LSV Team</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,sans-serif;margin:24px;color:#16303c}h1{margin-bottom:4px}p{color:#586970}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ccd7dc;padding:9px;text-align:left;font-size:12px}.green{color:#16833b}.orange{color:#b46200}.red{color:#bd2424}@media print{button{display:none}body{margin:0}}</style></head><body><h1>Synthèse météo WindyVR LSV Team</h1><p>Générée le ${escapeHtml(formatLocalDateTime(Date.now()))} · ECMWF / GFS / ICON</p><table><thead><tr><th>Route</th><th>Concordance</th><th>P90 des écarts</th><th>Parcours</th><th>ETA locale</th><th>Qualité</th></tr></thead><tbody>${rows}</tbody></table><p>Les couleurs mesurent la concordance des modèles, pas la performance de la route.</p><button onclick="window.print()">Imprimer / enregistrer en PDF</button></body></html>`;
+    const rows = routeAnalysis.map(item => {
+      const risk = routeRisk(item);
+      const route = routes.find(candidate => candidate.id === item.routeId);
+      const fileName = route?.name || 'n/a';
+      const nativeRun = route ? routeMeta(route) : 'n/a';
+      return `<tr><td>${escapeHtml(item.label)}</td><td>${escapeHtml(fileName)}</td><td>${escapeHtml(nativeRun)}</td><td class="${risk.level}">${escapeHtml(risk.label)}</td><td>${escapeHtml(risk.detail)}</td><td>${escapeHtml(routeWindowLabel(item.routeWindow))}</td><td>${escapeHtml(analysisWindowLabel(item.coverageWindow))}</td><td>${escapeHtml(item.eta)}<br>${escapeHtml(item.etaGap)}</td><td>${escapeHtml(item.quality.issues.join(' · ') || 'Fichier cohérent')}</td></tr>`;
+    }).join('');
+    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Synthèse WindyVR LSV Team</title><style>@page{size:A4 landscape;margin:10mm}body{font-family:Arial,sans-serif;margin:20px;color:#16303c}h1{margin-bottom:4px}p{color:#586970}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ccd7dc;padding:7px;text-align:left;font-size:10.5px;vertical-align:top}.green{color:#16833b}.orange{color:#b46200}.red{color:#bd2424}@media print{button{display:none}body{margin:0}}</style></head><body><h1>Synthèse météo WindyVR LSV Team</h1><p>Version ${escapeHtml(config.version)} · générée le ${escapeHtml(formatLocalDateTime(Date.now()))} · ECMWF / GFS / ICON</p><table><thead><tr><th>Route</th><th>Fichier</th><th>Modèle/run natif</th><th>Concordance</th><th>P90 des écarts</th><th>Parcours</th><th>Fenêtre analysée</th><th>ETA locale</th><th>Qualité</th></tr></thead><tbody>${rows}</tbody></table><p>Les couleurs mesurent la concordance des modèles, pas la performance de la route.</p><button onclick="window.print()">Imprimer / enregistrer en PDF</button></body></html>`;
     const popup = window.open('', '_blank');
     if (!popup) { message = 'Le navigateur a bloqué la fenêtre d’export.'; return; }
     popup.document.open(); popup.document.write(html); popup.document.close();
@@ -727,9 +719,12 @@
 
   async function handleFiles(event) {
     const input = event.currentTarget;
-    const files = [...input.files].slice(0, Math.max(0, MAX_ROUTES - routes.length));
+    const selection = selectFilesForImport(input.files, routes.length, MAX_ROUTES);
+    const files = selection.accepted;
+    const warnings = [];
+    const errors = [];
     message = '';
-    invalidateFullAnalysis();
+    if (files.length) invalidateFullAnalysis();
     for (const file of files) {
       try {
         const parsed = await parseRouteFile(file);
@@ -741,16 +736,18 @@
           color: routeStyle.color, styleIndex, dashArray: routeStyle.dashArray, visible: routes.filter(r => r.visible).length < MAX_VISIBLE_ROUTES,
           nativeModel: parsed.nativeModel, cycle: parsed.cycle, qualityMeta: parsed.qualityMeta || {},
           position: interpolateRoute(parsed.points, currentTimestamp), weather: {},
-          polyline: null, marker: null, riskLayers: [],
+          polyline: null, marker: null, riskLayers: [], summary: null,
         };
+        route.summary = summarizeRoute(route);
         if (route.visible) createMapObjects(route);
         routes = [...routes, route];
         const discardedInvalidPositions = Number(parsed.qualityMeta?.discardedInvalidPositions || 0);
-        if (discardedInvalidPositions > 0) message = `${file.name}: ${discardedInvalidPositions} position(s) invalide(s) écartée(s) à l’import.`;
+        if (discardedInvalidPositions > 0) warnings.push(`${file.name}: ${discardedInvalidPositions} position(s) invalide(s) écartée(s) à l’import.`);
       } catch (error) {
-        message = `${file.name}: ${error.message}`;
+        errors.push(`${file.name}: ${error.message}`);
       }
     }
+    message = buildImportMessage({ warnings, errors, ignoredCount: selection.ignoredCount, maxRoutes: MAX_ROUTES });
     input.value = '';
     if (routes.length) {
       try { map.fitBounds(routes.flatMap(r => r.points.map(p => [p.lat, p.lon])), { padding: [30, 30] }); } catch (_) {}
@@ -840,7 +837,7 @@
   .import { position:relative; overflow:hidden; white-space:nowrap; }
   .import input { position:absolute; inset:0; opacity:0; cursor:pointer; }
   .import.disabled { opacity:.45; pointer-events:none; }
-  .message { padding:8px 10px; margin:8px 0; border-left:3px solid #e96b36; background:rgba(255,255,255,.08); }
+  .message { padding:8px 10px; margin:8px 0; border-left:3px solid #e96b36; background:rgba(255,255,255,.08); white-space:pre-line; }
   .empty { opacity:.8; line-height:1.5; }
   .routes { margin:8px 0 14px; }
   .main-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}.analysis-button { width:100%; margin:0; min-height:38px; cursor:pointer; }
