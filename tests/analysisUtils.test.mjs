@@ -24,14 +24,48 @@ const coverageSamples = [
   { timestamp: routeStart, model: 'gfs', tws: 11, twd: 101 },
   { timestamp: Date.parse('2026-09-23T00:00:00Z'), model: 'ecmwf', tws: 12, twd: 110 },
   { timestamp: Date.parse('2026-09-23T00:00:00Z'), model: 'gfs', tws: 13, twd: 111 },
-  { timestamp: routeEnd, model: 'ecmwf', tws: null, twd: null, unavailable: true, reason: 'outside-horizon', horizonEnd: Date.parse('2026-09-24T00:00:00Z') },
-  { timestamp: routeEnd, model: 'gfs', tws: null, twd: null, unavailable: true, reason: 'outside-horizon', horizonEnd: Date.parse('2026-09-24T00:00:00Z') },
+  { timestamp: routeEnd, model: 'ecmwf', tws: null, twd: null, unavailable: true, reason: 'after-forecast-horizon', horizonEnd: Date.parse('2026-09-24T00:00:00Z') },
+  { timestamp: routeEnd, model: 'gfs', tws: null, twd: null, unavailable: true, reason: 'after-forecast-horizon', horizonEnd: Date.parse('2026-09-24T00:00:00Z') },
 ];
 const coverageWindow = summarizeCoverageWindow(coverageSamples, routeStart, routeEnd, ['ecmwf', 'gfs']);
 assert.equal(coverageWindow.complete, false);
-assert.equal(coverageWindow.limitingReason, 'outside-horizon');
+assert.equal(coverageWindow.limitingReason, 'after-forecast-horizon');
+assert.equal(coverageWindow.leadingReason, null);
+assert.equal(coverageWindow.trailingReason, 'after-forecast-horizon');
+assert.equal(coverageWindow.endsAfterForecast, true);
 assert.equal(coverageWindow.coveredSamples, 2);
 assert.equal(Math.round(coverageWindow.temporalCoveragePercent), 50);
+
+
+const leadingCoverageSamples = [
+  { timestamp: routeStart, model: 'ecmwf', tws: null, twd: null, unavailable: true, reason: 'before-forecast-window', horizonStart: Date.parse('2026-09-22T00:00:00Z') },
+  { timestamp: routeStart, model: 'gfs', tws: null, twd: null, unavailable: true, reason: 'before-forecast-window', horizonStart: Date.parse('2026-09-22T00:00:00Z') },
+  { timestamp: Date.parse('2026-09-22T00:00:00Z'), model: 'ecmwf', tws: 10, twd: 100 },
+  { timestamp: Date.parse('2026-09-22T00:00:00Z'), model: 'gfs', tws: 11, twd: 101 },
+  { timestamp: routeEnd, model: 'ecmwf', tws: 12, twd: 110 },
+  { timestamp: routeEnd, model: 'gfs', tws: 13, twd: 111 },
+];
+const leadingWindow = summarizeCoverageWindow(leadingCoverageSamples, routeStart, routeEnd, ['ecmwf', 'gfs']);
+assert.equal(leadingWindow.complete, false);
+assert.equal(leadingWindow.limitingReason, 'before-forecast-window');
+assert.equal(leadingWindow.leadingReason, 'before-forecast-window');
+assert.equal(leadingWindow.trailingReason, null);
+assert.equal(leadingWindow.startsBeforeForecast, true);
+
+const mixedCoverageSamples = [
+  { timestamp: routeStart, model: 'ecmwf', tws: null, twd: null, unavailable: true, reason: 'before-forecast-window' },
+  { timestamp: routeStart, model: 'gfs', tws: null, twd: null, unavailable: true, reason: 'before-forecast-window' },
+  { timestamp: Date.parse('2026-09-23T00:00:00Z'), model: 'ecmwf', tws: 10, twd: 100 },
+  { timestamp: Date.parse('2026-09-23T00:00:00Z'), model: 'gfs', tws: 11, twd: 101 },
+  { timestamp: routeEnd, model: 'ecmwf', tws: null, twd: null, unavailable: true, reason: 'after-forecast-horizon' },
+  { timestamp: routeEnd, model: 'gfs', tws: null, twd: null, unavailable: true, reason: 'after-forecast-horizon' },
+];
+const mixedWindow = summarizeCoverageWindow(mixedCoverageSamples, routeStart, routeEnd, ['ecmwf', 'gfs']);
+assert.equal(mixedWindow.limitingReason, 'multiple-limits');
+assert.equal(mixedWindow.leadingReason, 'before-forecast-window');
+assert.equal(mixedWindow.trailingReason, 'after-forecast-horizon');
+assert.equal(mixedWindow.startsBeforeForecast, true);
+assert.equal(mixedWindow.endsAfterForecast, true);
 
 const distanceWindow = summarizeRouteDistanceWindow([
   { time: new Date(routeStart), lat: 0, lon: 0 },

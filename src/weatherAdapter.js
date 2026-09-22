@@ -63,6 +63,16 @@ export function normalizeForecastSeries(raw) {
   return samples;
 }
 
+
+export function forecastWindowStatus(samples, timestamp) {
+  if (!Array.isArray(samples) || !samples.length) return 'no-data';
+  const ts = Number(timestamp);
+  if (!Number.isFinite(ts)) return 'no-data';
+  if (ts < samples[0].timestamp) return 'before-forecast-window';
+  if (ts > samples.at(-1).timestamp) return 'after-forecast-horizon';
+  return 'inside';
+}
+
 export function interpolateForecastSeries(samples, timestamp) {
   if (!Array.isArray(samples) || !samples.length) return null;
   const ts = Number(timestamp);

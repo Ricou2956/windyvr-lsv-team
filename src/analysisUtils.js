@@ -153,36 +153,65 @@ export function summarizeCoverageWindow(samples, routeStartTimestamp, routeEndTi
   const routeStart = Number(routeStartTimestamp);
   const routeEnd = Number(routeEndTimestamp);
   const byTime = new Map();
-  const byModel = Object.fromEntries(modelIds.map(model => [model, {
+  const blankModel = () => ({
     coveredSamples: 0,
-    outsideHorizon: 0,
+    beforeForecastWindow: 0,
+    afterForecastHorizon: 0,
+    forecastGaps: 0,
     errors: 0,
     firstCovered: null,
     lastCovered: null,
     horizonStart: null,
     horizonEnd: null,
-  }]));
+  });
+  const byModel = Object.fromEntries(modelIds.map(model => [model, blankModel()]));
+
+  function classifyUnavailable(sample, timestamp) {
+    if (sample?.reason === 'before-forecast-window') return 'before-forecast-window';
+    if (sample?.reason === 'after-forecast-horizon') return 'after-forecast-horizon';
+    if (sample?.reason === 'forecast-gap') return 'forecast-gap';
+    // Backward compatibility with diagnostics generated before schema v5.
+    if (sample?.reason === 'outside-horizon' || sample?.unavailable) {
+      if (Number.isFinite(sample?.horizonStart) && timestamp < sample.horizonStart) return 'before-forecast-window';
+      if (Number.isFinite(sample?.horizonEnd) && timestamp > sample.horizonEnd) return 'after-forecast-horizon';
+      return 'forecast-gap';
+    }
+    return null;
+  }
 
   for (const sample of samples || []) {
     const timestamp = Number(sample?.timestamp);
     if (!Number.isFinite(timestamp)) continue;
-    if (!byTime.has(timestamp)) byTime.set(timestamp, { coveredModels: 0, outsideHorizon: 0, errors: 0 });
-    const timeEntry = byTime.get(timestamp);
-    const modelEntry = byModel[sample.model] || (byModel[sample.model] = {
-      coveredSamples: 0, outsideHorizon: 0, errors: 0, firstCovered: null, lastCovered: null, horizonStart: null, horizonEnd: null,
+    if (!byTime.has(timestamp)) byTime.set(timestamp, {
+      coveredModels: 0,
+      beforeForecastWindow: 0,
+      afterForecastHorizon: 0,
+      forecastGaps: 0,
+      errors: 0,
     });
+    const timeEntry = byTime.get(timestamp);
+    const modelEntry = byModel[sample.model] || (byModel[sample.model] = blankModel());
 
     if (Number.isFinite(sample.tws) && Number.isFinite(sample.twd)) {
       timeEntry.coveredModels += 1;
       modelEntry.coveredSamples += 1;
       modelEntry.firstCovered = modelEntry.firstCovered == null ? timestamp : Math.min(modelEntry.firstCovered, timestamp);
       modelEntry.lastCovered = modelEntry.lastCovered == null ? timestamp : Math.max(modelEntry.lastCovered, timestamp);
-    } else if (sample.reason === 'outside-horizon' || sample.unavailable) {
-      timeEntry.outsideHorizon += 1;
-      modelEntry.outsideHorizon += 1;
     } else if (sample.error || sample.reason === 'request-or-format-error') {
       timeEntry.errors += 1;
       modelEntry.errors += 1;
+    } else {
+      const reason = classifyUnavailable(sample, timestamp);
+      if (reason === 'before-forecast-window') {
+        timeEntry.beforeForecastWindow += 1;
+        modelEntry.beforeForecastWindow += 1;
+      } else if (reason === 'after-forecast-horizon') {
+        timeEntry.afterForecastHorizon += 1;
+        modelEntry.afterForecastHorizon += 1;
+      } else if (reason === 'forecast-gap') {
+        timeEntry.forecastGaps += 1;
+        modelEntry.forecastGaps += 1;
+      }
     }
 
     if (Number.isFinite(sample.horizonStart)) {
@@ -202,10 +231,35 @@ export function summarizeCoverageWindow(samples, routeStartTimestamp, routeEndTi
   const coveredSpan = Number.isFinite(firstCovered) && Number.isFinite(lastCovered) ? Math.max(0, lastCovered - firstCovered) : 0;
   const temporalCoveragePercent = routeDuration > 0 ? Math.max(0, Math.min(100, coveredSpan / routeDuration * 100)) : (coveredTimes.length ? 100 : 0);
   const sampleCoveragePercent = requestedTimes.length ? coveredTimes.length / requestedTimes.length * 100 : 0;
-  const hasOutsideHorizon = [...byTime.values()].some(value => value.outsideHorizon > 0);
-  const hasErrors = [...byTime.values()].some(value => value.errors > 0);
   const startsAtRouteStart = Number.isFinite(firstCovered) && Number.isFinite(routeStart) && firstCovered <= routeStart;
   const reachesRouteEnd = Number.isFinite(lastCovered) && Number.isFinite(routeEnd) && lastCovered >= routeEnd;
+
+  const reasonForEntries = (entries, side) => {
+    if (!entries.length) return null;
+    const total = key => entries.reduce((sum, entry) => sum + (entry?.[key] || 0), 0);
+    if (side === 'leading' && total('beforeForecastWindow') > 0) return 'before-forecast-window';
+    if (side === 'trailing' && total('afterForecastHorizon') > 0) return 'after-forecast-horizon';
+    if (total('errors') > 0) return 'weather-error';
+    if (total('forecastGaps') > 0) return 'forecast-gap';
+    if (total('beforeForecastWindow') > 0) return 'before-forecast-window';
+    if (total('afterForecastHorizon') > 0) return 'after-forecast-horizon';
+    return null;
+  };
+
+  const leadingEntries = requestedTimes
+    .filter(timestamp => firstCovered == null || timestamp < firstCovered)
+    .map(timestamp => byTime.get(timestamp));
+  const trailingEntries = requestedTimes
+    .filter(timestamp => lastCovered == null || timestamp > lastCovered)
+    .map(timestamp => byTime.get(timestamp));
+  const leadingReason = startsAtRouteStart ? null : reasonForEntries(leadingEntries, 'leading');
+  const trailingReason = reachesRouteEnd ? null : reasonForEntries(trailingEntries, 'trailing');
+
+  let limitingReason = null;
+  if (!(startsAtRouteStart && reachesRouteEnd)) {
+    if (leadingReason && trailingReason && leadingReason !== trailingReason) limitingReason = 'multiple-limits';
+    else limitingReason = leadingReason || trailingReason || (coveredTimes.length ? 'partial' : 'no-data');
+  }
 
   return {
     requestedSamples: requestedTimes.length,
@@ -215,7 +269,11 @@ export function summarizeCoverageWindow(samples, routeStartTimestamp, routeEndTi
     temporalCoveragePercent,
     sampleCoveragePercent,
     complete: Boolean(startsAtRouteStart && reachesRouteEnd),
-    limitingReason: reachesRouteEnd ? null : hasOutsideHorizon ? 'outside-horizon' : hasErrors ? 'weather-error' : coveredTimes.length ? 'partial' : 'no-data',
+    limitingReason,
+    leadingReason,
+    trailingReason,
+    startsBeforeForecast: leadingReason === 'before-forecast-window',
+    endsAfterForecast: trailingReason === 'after-forecast-horizon',
     byModel,
   };
 }

@@ -52,10 +52,10 @@ const routeAnalysis = [{
   routeId: 'private-id', source: 'Avalon', label: 'Avalon', sampleCount: 1,
   etaComparable: false, arrivalThresholdNm: 5, arrivalMaxSeparationNm: 42.37,
   routeWindow: { start: Date.parse('2026-09-18T00:00:00Z'), end: Date.parse('2026-09-18T01:00:00Z'), distanceNm: 8.4 },
-  quality: { level: 'green', issues: [] }, summary: { byModel: {}, critical: null }, riskEvents: [], coverageWindow: null, riskProfile: null,
+  quality: { level: 'green', issues: [] }, summary: { byModel: {}, critical: null }, riskEvents: [], coverageWindow: { firstCovered: Date.parse('2026-09-18T00:30:00Z'), lastCovered: Date.parse('2026-09-18T01:00:00Z'), temporalCoveragePercent: 50, sampleCoveragePercent: 50, distanceCoveragePercent: 50, coveredDistanceNm: 4.2, totalDistanceNm: 8.4, complete: false, limitingReason: 'before-forecast-window', leadingReason: 'before-forecast-window', trailingReason: null, startsBeforeForecast: true, endsAfterForecast: false, requestedSamples: 2, coveredSamples: 1 }, riskProfile: null,
 }];
 const report = buildDiagnosticsReport({ pluginVersion: '1.1.0', routes: [route], routeAnalysis });
-assert.equal(report.schemaVersion, 4);
+assert.equal(report.schemaVersion, 5);
 assert.equal(report.analysisRun.status, 'done');
 assert.equal(report.analysisRun.weather.networkRequests, 1);
 assert.equal(report.analysisRun.weather.cacheHits, 1);
@@ -78,6 +78,11 @@ assert.equal(report.routeAnalysis[0].etaComparison.status, 'different-arrivals')
 assert.equal(report.routeAnalysis[0].etaComparison.maxSeparationNm, 42.4);
 assert.equal(report.routeAnalysis[0].routeWindow.distanceNm, 8.4);
 assert.equal(report.routeAnalysis[0].routeWindow.startUtc, '2026-09-18T00:00:00.000Z');
+assert.equal(report.routeAnalysis[0].analysisWindow.limitingReason, 'before-forecast-window');
+assert.equal(report.routeAnalysis[0].analysisWindow.leadingReason, 'before-forecast-window');
+assert.equal(report.routeAnalysis[0].analysisWindow.trailingReason, null);
+assert.equal(report.routeAnalysis[0].analysisWindow.startsBeforeForecast, true);
+assert.equal(report.routeAnalysis[0].analysisWindow.endsAfterForecast, false);
 
 assert.equal(report.privacy.containsFileNames, false);
 assert.equal(report.privacy.containsCoordinates, false);

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   KNOTS_PER_MPS,
   forecastValueAt,
+  forecastWindowStatus,
   interpolateForecastSeries,
   metersPerSecondToKnots,
   normalizeForecastSeries,
@@ -35,6 +36,9 @@ assert.equal(Number(middle.speedMps.toFixed(1)), 7.5);
 assert.ok(middle.direction < 1 || middle.direction > 359);
 assert.equal(interpolateForecastSeries(series, t0 - 1), null);
 assert.equal(interpolateForecastSeries(series, t1 + 1), null);
+assert.equal(forecastWindowStatus(series, t0 - 1), 'before-forecast-window');
+assert.equal(forecastWindowStatus(series, t0), 'inside');
+assert.equal(forecastWindowStatus(series, t1 + 1), 'after-forecast-horizon');
 
 const value = forecastValueAt(series, (t0 + t1) / 2, 270);
 assert.equal(Number(value.tws.toFixed(1)), 14.6);

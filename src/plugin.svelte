@@ -198,7 +198,7 @@
   import { parseRouteFile } from './routeParser';
   import { interpolateRoute } from './timeUtils';
   import { createPluginLifecycle, markerOpacityForPosition } from './lifecycleUtils.js';
-  import { forecastValueAt, normalizeForecastSeries } from './weatherAdapter.js';
+  import { forecastValueAt, forecastWindowStatus, normalizeForecastSeries } from './weatherAdapter.js';
   import { focusableElements, nextRouteStyleIndex, routeStyleForIndex, trapFocus } from './uiUtils.js';
   import { buildImportMessage, selectFilesForImport } from './importUtils.js';
 
@@ -324,7 +324,10 @@
   function modelSummary(w) {
     if (!w) return '…';
     if (w.reason === 'route-out-of-range') return 'hors plage';
-    if (w.unavailable) return 'hors horizon';
+    if (w.reason === 'before-forecast-window') return 'avant prévision';
+    if (w.reason === 'after-forecast-horizon') return 'hors horizon';
+    if (w.reason === 'forecast-gap') return 'donnée météo indisponible';
+    if (w.unavailable) return 'indisponible';
     if (w.error) return 'erreur météo';
     if (!Number.isFinite(w.tws) || !Number.isFinite(w.twd) || !Number.isFinite(w.twa)) return 'n/a';
     return `TWS ${w.tws.toFixed(1)}\nTWD ${Math.round(w.twd)}°\nTWA ${Math.round(w.twa)}°`;
@@ -347,7 +350,19 @@
     const span = `${formatLocalDateTime(window.firstCovered)} → ${formatLocalDateTime(window.lastCovered)}`;
     const distance = `${Math.round(window.coveredDistanceNm || 0)} / ${Math.round(window.totalDistanceNm || 0)} nm`;
     if (window.complete) return `${span} · 100 % · ${distance}`;
-    const reason = window.limitingReason === 'outside-horizon' ? 'horizon météo atteint' : window.limitingReason === 'weather-error' ? 'erreur météo' : 'couverture partielle';
+    const labels = {
+      'before-forecast-window': 'début avant disponibilité météo',
+      'after-forecast-horizon': 'horizon météo atteint',
+      'forecast-gap': 'lacune météo',
+      'weather-error': 'erreur météo',
+      'multiple-limits': 'fenêtre météo incomplète',
+      'no-data': 'aucune donnée météo',
+      partial: 'couverture partielle',
+    };
+    const details = [];
+    if (window.leadingReason && labels[window.leadingReason]) details.push(labels[window.leadingReason]);
+    if (window.trailingReason && window.trailingReason !== window.leadingReason && labels[window.trailingReason]) details.push(labels[window.trailingReason]);
+    const reason = details.join(' + ') || labels[window.limitingReason] || 'couverture partielle';
     return `${span} · ${Math.round(window.temporalCoveragePercent || 0)} % · ${distance} · ${reason}`;
   }
 
@@ -595,6 +610,21 @@
       }
     }
 
+    const windowStatus = forecastWindowStatus(samples, timestamp);
+    if (windowStatus !== 'inside') {
+      recordWeatherUnavailable(model);
+      return {
+        model,
+        tws: null,
+        twd: null,
+        twa: null,
+        unavailable: true,
+        reason: windowStatus,
+        horizonStart: samples[0].timestamp,
+        horizonEnd: samples.at(-1).timestamp,
+      };
+    }
+
     const value = forecastValueAt(samples, timestamp, position.cog);
     if (!value) {
       recordWeatherUnavailable(model);
@@ -604,7 +634,7 @@
         twd: null,
         twa: null,
         unavailable: true,
-        reason: 'outside-horizon',
+        reason: 'forecast-gap',
         horizonStart: samples[0].timestamp,
         horizonEnd: samples.at(-1).timestamp,
       };

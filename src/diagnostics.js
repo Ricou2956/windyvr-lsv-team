@@ -1,4 +1,4 @@
-export const DIAGNOSTICS_SCHEMA_VERSION = 4;
+export const DIAGNOSTICS_SCHEMA_VERSION = 5;
 
 function emptyModelStats() {
   return {
@@ -262,6 +262,10 @@ function routeAnalysisDiagnostics(item, routeIndex) {
       totalDistanceNm: Number.isFinite(item.coverageWindow.totalDistanceNm) ? Number(item.coverageWindow.totalDistanceNm.toFixed(1)) : 0,
       complete: Boolean(item.coverageWindow.complete),
       limitingReason: item.coverageWindow.limitingReason || null,
+      leadingReason: item.coverageWindow.leadingReason || null,
+      trailingReason: item.coverageWindow.trailingReason || null,
+      startsBeforeForecast: Boolean(item.coverageWindow.startsBeforeForecast),
+      endsAfterForecast: Boolean(item.coverageWindow.endsAfterForecast),
       requestedSamples: item.coverageWindow.requestedSamples || 0,
       coveredSamples: item.coverageWindow.coveredSamples || 0,
     } : null,
