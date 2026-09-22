@@ -219,3 +219,100 @@ export function summarizeCoverageWindow(samples, routeStartTimestamp, routeEndTi
     byModel,
   };
 }
+
+
+function nearestRank(values, q) {
+  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!sorted.length) return null;
+  const rank = Math.max(1, Math.ceil(q * sorted.length));
+  return sorted[Math.min(sorted.length - 1, rank - 1)];
+}
+
+export function riskEventSeverity(event) {
+  if (!event || event.level === 'unknown') return 0;
+  const speed = Number.isFinite(event.speedSpread) ? event.speedSpread / 8 : 0;
+  const direction = Number.isFinite(event.directionSpread) ? event.directionSpread / 45 : 0;
+  const levelBoost = event.level === 'red' ? 0.15 : event.level === 'orange' ? 0.05 : 0;
+  return Math.max(speed, direction) + levelBoost;
+}
+
+export function summarizeRiskProfile(events, coverageWindow, { minCoveragePercent = 70 } = {}) {
+  const allEvents = Array.isArray(events) ? events : [];
+  const evaluable = allEvents.filter(event => event.level !== 'unknown' && (Number.isFinite(event.speedSpread) || Number.isFinite(event.directionSpread)));
+  const temporalCoverage = Number.isFinite(coverageWindow?.temporalCoveragePercent) ? coverageWindow.temporalCoveragePercent : 100;
+  const distanceCoverage = Number.isFinite(coverageWindow?.distanceCoveragePercent) ? coverageWindow.distanceCoveragePercent : temporalCoverage;
+  const coveragePercent = Math.min(temporalCoverage, distanceCoverage);
+
+  if (!evaluable.length || coveragePercent < minCoveragePercent) {
+    const detail = !evaluable.length
+      ? 'Aucun échantillon météo comparable'
+      : `Couverture ${Math.round(coveragePercent)} % · concordance non évaluable`;
+    return {
+      score: 0, level: 'unknown', label: 'Couverture insuffisante', detail,
+      coveragePercent, evaluableEventCount: evaluable.length, p90SpeedSpread: null, p90DirectionSpread: null,
+      redEventPercent: 0, sensitiveEventPercent: 0,
+    };
+  }
+
+  const p90SpeedSpread = nearestRank(evaluable.map(event => event.speedSpread), 0.9) ?? 0;
+  const p90DirectionSpread = nearestRank(evaluable.map(event => event.directionSpread), 0.9) ?? 0;
+  const redCount = evaluable.filter(event => event.level === 'red').length;
+  const orangeCount = evaluable.filter(event => event.level === 'orange').length;
+  const redEventPercent = redCount / evaluable.length * 100;
+  const sensitiveEventPercent = (redCount + orangeCount) / evaluable.length * 100;
+
+  const speedComponent = 50 * Math.min(1, Math.max(0, p90SpeedSpread / 8));
+  const directionComponent = 30 * Math.min(1, Math.max(0, p90DirectionSpread / 45));
+  const persistenceComponent = 20 * Math.min(1, Math.max(0, redEventPercent / 100));
+  const score = Math.round(Math.min(100, speedComponent + directionComponent + persistenceComponent));
+  const level = score >= 70 ? 'red' : score >= 40 ? 'orange' : 'green';
+  const label = level === 'red' ? 'Désaccord fort' : level === 'orange' ? 'Désaccord à surveiller' : 'Bonne concordance';
+  const detail = `P90 ${p90SpeedSpread.toFixed(1)} kt · ${Math.round(p90DirectionSpread)}° · rouge ${Math.round(redEventPercent)} % · couverture ${Math.round(coveragePercent)} %`;
+
+  return {
+    score, level, label, detail, coveragePercent, evaluableEventCount: evaluable.length,
+    p90SpeedSpread, p90DirectionSpread, redEventPercent, sensitiveEventPercent,
+  };
+}
+
+export function selectCriticalEvents(routeItems, limit = 12) {
+  const items = Array.isArray(routeItems) ? routeItems : [];
+  const candidates = [];
+  const mandatory = [];
+
+  for (const item of items) {
+    const enriched = (item.riskEvents || [])
+      .filter(event => event.level !== 'green' && event.level !== 'unknown')
+      .map(event => ({ ...event, routeId: item.routeId, label: item.label, severity: riskEventSeverity(event) }));
+    candidates.push(...enriched);
+
+    const criticalTs = item?.summary?.critical?.timestamp;
+    let chosen = Number.isFinite(criticalTs) ? enriched.find(event => event.timestamp === criticalTs) : null;
+    if (!chosen && enriched.length) chosen = [...enriched].sort((a, b) => b.severity - a.severity || a.timestamp - b.timestamp)[0];
+    if (chosen) mandatory.push(chosen);
+  }
+
+  const key = event => `${event.routeId}:${event.timestamp}`;
+  const selected = [];
+  const seen = new Set();
+  for (const event of mandatory.sort((a, b) => b.severity - a.severity)) {
+    const k = key(event);
+    if (seen.has(k)) continue;
+    selected.push(event);
+    seen.add(k);
+    if (selected.length >= limit) break;
+  }
+
+  if (selected.length < limit) {
+    const remaining = candidates
+      .filter(event => !seen.has(key(event)))
+      .sort((a, b) => b.severity - a.severity || a.timestamp - b.timestamp);
+    for (const event of remaining) {
+      selected.push(event);
+      seen.add(key(event));
+      if (selected.length >= limit) break;
+    }
+  }
+
+  return selected.sort((a, b) => a.timestamp - b.timestamp);
+}

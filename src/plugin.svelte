@@ -164,7 +164,7 @@
             </article>
           {/each}
         </div>
-        <section class="visual-timeline"><h3>Passages sensibles — cliquez pour ouvrir dans Windy</h3>
+        <section class="visual-timeline"><h3>Passages sensibles — cliquez pour ouvrir dans Windy{criticalEventTotal() > criticalEvents().length ? ` · ${criticalEvents().length}/${criticalEventTotal()} affichés` : ''}</h3>
           {#if criticalEvents().length}<div class="timeline-list">{#each criticalEvents() as event}
             <button class="risk-{event.level}" on:click={() => jumpToEvent(event)}><i></i><strong>{event.label}</strong><span>{formatLocalDateTime(event.timestamp)} · Δ {event.speedSpread.toFixed(1)} kt / {Math.round(event.directionSpread)}°</span></button>
           {/each}</div>{:else}<p class="analysis-hint">Aucune divergence significative détectée sur la période couverte.</p>{/if}
@@ -184,7 +184,7 @@
   import { onDestroy, onMount } from 'svelte';
   import config from './pluginConfig.ts';
   import { formatLocalDateTime } from './dateTime.js';
-  import { buildRiskEvents, buildSampleTimes, summarizeCoverageWindow, summarizeRouteDistanceWindow, summarizeWeatherSamples } from './analysisUtils.js';
+  import { buildRiskEvents, buildSampleTimes, selectCriticalEvents, summarizeCoverageWindow, summarizeRiskProfile, summarizeRouteDistanceWindow, summarizeWeatherSamples } from './analysisUtils.js';
   import { assessRouteQuality } from './qualityUtils.js';
   import {
     buildDiagnosticsReport, finishAnalysisDiagnostics, recordWeatherCacheHit, recordWeatherCacheMiss,
@@ -312,25 +312,26 @@
   }
 
   function routeRisk(item) {
-    const c = item.summary.critical;
-    const coverage = MODELS.reduce((sum, m) => sum + (item.summary.byModel[m.id]?.coverage || 0), 0) / Math.max(1, item.sampleCount * MODELS.length);
-    const score = Math.min(100, Math.max(c ? c.speedSpread * 9 : 0, c ? c.directionSpread * 1.5 : 0, (1 - coverage) * 80));
-    const level = score >= 70 ? 'red' : score >= 40 ? 'orange' : 'green';
-    const label = level === 'red' ? 'Divergence forte' : level === 'orange' ? 'À surveiller' : 'Bonne concordance';
-    const detail = c ? `Écart max. ${c.speedSpread.toFixed(1)} kt · ${Math.round(c.directionSpread)}° · couverture ${Math.round(coverage * 100)} %` : `Couverture ${Math.round(coverage * 100)} %`;
-    return { score, level, label, detail };
+    return item.riskProfile || summarizeRiskProfile(item.riskEvents, item.coverageWindow);
   }
 
   function globalRisk() {
-    const ranked = routeAnalysis.map(item => ({ item, risk: routeRisk(item) })).sort((a, b) => b.risk.score - a.risk.score);
-    if (!ranked.length) return { level: 'green', label: 'Analyse indisponible', detail: '' };
-    const top = ranked[0];
-    return { level: top.risk.level, label: top.risk.level === 'red' ? 'Vigilance forte' : top.risk.level === 'orange' ? 'Vigilance modérée' : 'Bonne concordance générale', detail: `${top.item.label} · ${top.risk.detail}` };
+    const ranked = routeAnalysis.map(item => ({ item, risk: routeRisk(item) }));
+    if (!ranked.length) return { level: 'unknown', label: 'Analyse indisponible', detail: '' };
+    const evaluable = ranked.filter(entry => entry.risk.level !== 'unknown').sort((a, b) => b.risk.score - a.risk.score);
+    const unknownCount = ranked.length - evaluable.length;
+    if (!evaluable.length) return { level: 'unknown', label: 'Concordance non évaluable', detail: `${unknownCount} route(s) à couverture insuffisante` };
+    const top = evaluable[0];
+    const suffix = unknownCount ? ` · ${unknownCount} route(s) non évaluable(s)` : '';
+    return { level: top.risk.level, label: top.risk.level === 'red' ? 'Vigilance forte' : top.risk.level === 'orange' ? 'Vigilance modérée' : 'Bonne concordance générale', detail: `${top.item.label} · ${top.risk.detail}${suffix}` };
   }
 
   function criticalEvents() {
-    return routeAnalysis.flatMap(item => item.riskEvents.filter(e => e.level !== 'green' && e.level !== 'unknown').map(e => ({ ...e, routeId: item.routeId, label: item.label })))
-      .sort((a, b) => a.timestamp - b.timestamp).slice(0, 12);
+    return selectCriticalEvents(routeAnalysis, 12);
+  }
+
+  function criticalEventTotal() {
+    return routeAnalysis.reduce((sum, item) => sum + item.riskEvents.filter(event => event.level !== 'green' && event.level !== 'unknown').length, 0);
   }
 
   function jumpToEvent(event) {
@@ -347,7 +348,7 @@
 
   function exportReport() {
     const rows = routeAnalysis.map(item => { const risk = routeRisk(item); return `<tr><td>${escapeHtml(item.label)}</td><td class="${risk.level}">${escapeHtml(risk.label)}</td><td>${escapeHtml(risk.detail)}</td><td>${escapeHtml(item.eta)}<br>${escapeHtml(item.etaGap)}</td><td>${escapeHtml(item.quality.issues.join(' · ') || 'Fichier cohérent')}</td></tr>`; }).join('');
-    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Synthèse WindyVR LSV Team</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,sans-serif;margin:24px;color:#16303c}h1{margin-bottom:4px}p{color:#586970}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ccd7dc;padding:9px;text-align:left;font-size:12px}.green{color:#16833b}.orange{color:#b46200}.red{color:#bd2424}@media print{button{display:none}body{margin:0}}</style></head><body><h1>Synthèse météo WindyVR LSV Team</h1><p>Générée le ${escapeHtml(formatLocalDateTime(Date.now()))} · ECMWF / GFS / ICON</p><table><thead><tr><th>Route</th><th>Concordance</th><th>Écart maximal</th><th>ETA locale</th><th>Qualité</th></tr></thead><tbody>${rows}</tbody></table><p>Les couleurs mesurent la concordance des modèles, pas la performance de la route.</p><button onclick="window.print()">Imprimer / enregistrer en PDF</button></body></html>`;
+    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Synthèse WindyVR LSV Team</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,sans-serif;margin:24px;color:#16303c}h1{margin-bottom:4px}p{color:#586970}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ccd7dc;padding:9px;text-align:left;font-size:12px}.green{color:#16833b}.orange{color:#b46200}.red{color:#bd2424}@media print{button{display:none}body{margin:0}}</style></head><body><h1>Synthèse météo WindyVR LSV Team</h1><p>Générée le ${escapeHtml(formatLocalDateTime(Date.now()))} · ECMWF / GFS / ICON</p><table><thead><tr><th>Route</th><th>Concordance</th><th>P90 des écarts</th><th>ETA locale</th><th>Qualité</th></tr></thead><tbody>${rows}</tbody></table><p>Les couleurs mesurent la concordance des modèles, pas la performance de la route.</p><button onclick="window.print()">Imprimer / enregistrer en PDF</button></body></html>`;
     const popup = window.open('', '_blank');
     if (!popup) { message = 'Le navigateur a bloqué la fenêtre d’export.'; return; }
     popup.document.open(); popup.document.write(html); popup.document.close();
@@ -604,11 +605,13 @@
         const routeStartMs = route.points[0].time.getTime();
         const coverageWindow = summarizeCoverageWindow(routeSamples, routeStartMs, etaMs, MODELS.map(m => m.id));
         Object.assign(coverageWindow, summarizeRouteDistanceWindow(route.points, coverageWindow.firstCovered, coverageWindow.lastCovered));
+        const summary = summarizeWeatherSamples(routeSamples, MODELS.map(m => m.id));
+        const riskEvents = buildRiskEvents(routeSamples);
+        const riskProfile = summarizeRiskProfile(riskEvents, coverageWindow);
         return {
           routeId: route.id, source: route.source, label: routeLabel(route), color: route.color,
           sampleCount: sampleCounts.get(route.id), eta: formatLocalDateTime(etaMs), etaGap: etaMs === earliestEta ? 'ETA la plus tôt' : `+${fmtEtaDelta(etaMs - earliestEta)}`,
-          quality: assessRouteQuality(route), coverageWindow,
-          summary: summarizeWeatherSamples(routeSamples, MODELS.map(m => m.id)), riskEvents: buildRiskEvents(routeSamples),
+          quality: assessRouteQuality(route), coverageWindow, summary, riskEvents, riskProfile,
         };
       });
       applyRiskLayers();

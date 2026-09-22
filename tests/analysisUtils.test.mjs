@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { angularDifference, buildRiskEvents, buildSampleTimes, samplingIntervalHours, summarizeCoverageWindow, summarizeRouteDistanceWindow, summarizeWeatherSamples } from '../src/analysisUtils.js';
+import { angularDifference, buildRiskEvents, buildSampleTimes, samplingIntervalHours, selectCriticalEvents, summarizeCoverageWindow, summarizeRiskProfile, summarizeRouteDistanceWindow, summarizeWeatherSamples } from '../src/analysisUtils.js';
 
 const points = [{ time: new Date('2026-09-02T10:00:00Z') }, { time: new Date('2026-09-03T10:00:00Z') }];
 assert.deepEqual(buildSampleTimes(points), [Date.parse('2026-09-02T10:00:00Z'), Date.parse('2026-09-02T13:00:00Z'), Date.parse('2026-09-02T16:00:00Z'), Date.parse('2026-09-02T19:00:00Z'), Date.parse('2026-09-02T22:00:00Z'), Date.parse('2026-09-03T01:00:00Z'), Date.parse('2026-09-03T04:00:00Z'), Date.parse('2026-09-03T07:00:00Z'), Date.parse('2026-09-03T10:00:00Z')]);
@@ -39,5 +39,39 @@ const distanceWindow = summarizeRouteDistanceWindow([
   { time: new Date(routeEnd), lat: 0, lon: 2 },
 ], routeStart, Date.parse('2026-09-23T00:00:00Z'));
 assert.equal(Math.round(distanceWindow.distanceCoveragePercent), 50);
+
+
+const mostlyCalm = Array.from({ length: 9 }, (_, index) => ({ timestamp: index, level: 'green', speedSpread: 2, directionSpread: 10 }))
+  .concat([{ timestamp: 9, level: 'red', speedSpread: 20, directionSpread: 180 }]);
+const calmProfile = summarizeRiskProfile(mostlyCalm, { temporalCoveragePercent: 100, distanceCoveragePercent: 100 });
+assert.equal(calmProfile.level, 'green');
+assert.equal(calmProfile.p90SpeedSpread, 2);
+assert.equal(calmProfile.p90DirectionSpread, 10);
+
+const persistentRed = Array.from({ length: 10 }, (_, index) => ({ timestamp: index, level: index < 6 ? 'red' : 'orange', speedSpread: index < 6 ? 9 : 6, directionSpread: index < 6 ? 50 : 30 }));
+const redProfile = summarizeRiskProfile(persistentRed, { temporalCoveragePercent: 100, distanceCoveragePercent: 100 });
+assert.equal(redProfile.level, 'red');
+assert.ok(redProfile.score >= 70);
+
+const insufficient = summarizeRiskProfile(persistentRed, { temporalCoveragePercent: 64, distanceCoveragePercent: 64 });
+assert.equal(insufficient.level, 'unknown');
+assert.equal(insufficient.score, 0);
+
+const routesForCritical = [
+  { routeId: 'a', label: 'A', summary: { critical: { timestamp: 100 } }, riskEvents: [
+    { timestamp: 10, level: 'orange', speedSpread: 5, directionSpread: 25 },
+    { timestamp: 100, level: 'red', speedSpread: 10, directionSpread: 60 },
+    { timestamp: 110, level: 'red', speedSpread: 12, directionSpread: 55 },
+  ] },
+  { routeId: 'b', label: 'B', summary: { critical: { timestamp: 200 } }, riskEvents: [
+    { timestamp: 20, level: 'orange', speedSpread: 6, directionSpread: 28 },
+    { timestamp: 200, level: 'red', speedSpread: 9, directionSpread: 50 },
+  ] },
+];
+const criticalSelection = selectCriticalEvents(routesForCritical, 3);
+assert.equal(criticalSelection.length, 3);
+assert.ok(criticalSelection.some(event => event.routeId === 'a' && event.timestamp === 100));
+assert.ok(criticalSelection.some(event => event.routeId === 'b' && event.timestamp === 200));
+assert.deepEqual(criticalSelection.map(event => event.timestamp), [...criticalSelection.map(event => event.timestamp)].sort((a, b) => a - b));
 
 console.log('weather analysis tests: OK');

@@ -1,4 +1,4 @@
-export const DIAGNOSTICS_SCHEMA_VERSION = 2;
+export const DIAGNOSTICS_SCHEMA_VERSION = 3;
 
 function emptyModelStats() {
   return {
@@ -264,6 +264,16 @@ function routeAnalysisDiagnostics(item, routeIndex) {
       limitingReason: item.coverageWindow.limitingReason || null,
       requestedSamples: item.coverageWindow.requestedSamples || 0,
       coveredSamples: item.coverageWindow.coveredSamples || 0,
+    } : null,
+    riskProfile: item?.riskProfile ? {
+      score: Number.isFinite(item.riskProfile.score) ? item.riskProfile.score : 0,
+      level: item.riskProfile.level || null,
+      coveragePercent: Number.isFinite(item.riskProfile.coveragePercent) ? Number(item.riskProfile.coveragePercent.toFixed(1)) : 0,
+      evaluableEventCount: item.riskProfile.evaluableEventCount || 0,
+      p90SpeedSpreadKt: Number.isFinite(item.riskProfile.p90SpeedSpread) ? Number(item.riskProfile.p90SpeedSpread.toFixed(3)) : null,
+      p90DirectionSpreadDeg: Number.isFinite(item.riskProfile.p90DirectionSpread) ? Number(item.riskProfile.p90DirectionSpread.toFixed(3)) : null,
+      redEventPercent: Number.isFinite(item.riskProfile.redEventPercent) ? Number(item.riskProfile.redEventPercent.toFixed(1)) : 0,
+      sensitiveEventPercent: Number.isFinite(item.riskProfile.sensitiveEventPercent) ? Number(item.riskProfile.sensitiveEventPercent.toFixed(1)) : 0,
     } : null,
   };
 }

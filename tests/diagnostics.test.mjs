@@ -49,7 +49,7 @@ const route = {
   ],
 };
 const report = buildDiagnosticsReport({ pluginVersion: '1.1.0', routes: [route], routeAnalysis: [] });
-assert.equal(report.schemaVersion, 2);
+assert.equal(report.schemaVersion, 3);
 assert.equal(report.analysisRun.status, 'done');
 assert.equal(report.analysisRun.weather.networkRequests, 1);
 assert.equal(report.analysisRun.weather.cacheHits, 1);
