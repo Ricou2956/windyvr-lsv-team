@@ -1,0 +1,480 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="GPX Data Extractor" >
+<metadata>
+    <name>GPX data extracted from zezo.org</name>
+</metadata>
+<wpt lat="49.82805555555556" lon="-5.1875">
+    <ele>0</ele>
+    <time>2026-09-25T09:00:00.000+00:00</time>
+    <name>Point 0</name>
+    <desc>2026-09-25 09:00 UTC COG = 90° SOG = 4.67nds TWS = 3.8nds TWA = -110° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.82805555555556" lon="-5.171944444444445">
+    <ele>0</ele>
+    <time>2026-09-25T09:10:00.000+00:00</time>
+    <name>Point 1</name>
+    <desc>2026-09-25 09:10 UTC COG = 85° SOG = 4.60nds TWS = 3.8nds TWA = -110° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.82805555555556" lon="-5.125">
+    <ele>0</ele>
+    <time>2026-09-25T09:30:00.000+00:00</time>
+    <name>Point 2</name>
+    <desc>2026-09-25 09:30 UTC COG = 77° SOG = 4.42nds TWS = 3.6nds TWA = -110° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.82805555555556" lon="-5.0938888888888885">
+    <ele>0</ele>
+    <time>2026-09-25T09:50:00.000+00:00</time>
+    <name>Point 3</name>
+    <desc>2026-09-25 09:50 UTC COG = 69° SOG = 4.20nds TWS = 3.4nds TWA = -110° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.84388888888889" lon="-5.0625">
+    <ele>0</ele>
+    <time>2026-09-25T10:10:00.000+00:00</time>
+    <name>Point 4</name>
+    <desc>2026-09-25 10:10 UTC COG = 65° SOG = 4.00nds TWS = 3.2nds TWA = -115° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.84388888888889" lon="-5.046944444444445">
+    <ele>0</ele>
+    <time>2026-09-25T10:20:00.000+00:00</time>
+    <name>Point 5</name>
+    <desc>2026-09-25 10:20 UTC COG = 59° SOG = 3.90nds TWS = 3.1nds TWA = -115° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.85944444444445" lon="-5.0313888888888885">
+    <ele>0</ele>
+    <time>2026-09-25T10:30:00.000+00:00</time>
+    <name>Point 6</name>
+    <desc>2026-09-25 10:30 UTC COG = 52° SOG = 3.83nds TWS = 3.1nds TWA = -115° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.85944444444445" lon="-5.015555555555555">
+    <ele>0</ele>
+    <time>2026-09-25T10:40:00.000+00:00</time>
+    <name>Point 7</name>
+    <desc>2026-09-25 10:40 UTC COG = 50° SOG = 3.72nds TWS = 3.0nds TWA = -120° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.875" lon="-5">
+    <ele>0</ele>
+    <time>2026-09-25T10:50:00.000+00:00</time>
+    <name>Point 8</name>
+    <desc>2026-09-25 10:50 UTC COG = 42° SOG = 3.73nds TWS = 3.1nds TWA = -120° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.875" lon="-4.984444444444445">
+    <ele>0</ele>
+    <time>2026-09-25T11:00:00.000+00:00</time>
+    <name>Point 9</name>
+    <desc>2026-09-25 11:00 UTC COG = 41° SOG = 3.71nds TWS = 3.1nds TWA = -125° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.89055555555556" lon="-4.984444444444445">
+    <ele>0</ele>
+    <time>2026-09-25T11:10:00.000+00:00</time>
+    <name>Point 10</name>
+    <desc>2026-09-25 11:10 UTC COG = 32° SOG = 3.86nds TWS = 3.3nds TWA = -125° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.906388888888884" lon="-4.968888888888889">
+    <ele>0</ele>
+    <time>2026-09-25T11:30:00.000+00:00</time>
+    <name>Point 11</name>
+    <desc>2026-09-25 11:30 UTC COG = 26° SOG = 4.05nds TWS = 3.6nds TWA = -130° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.92194444444444" lon="-4.9375">
+    <ele>0</ele>
+    <time>2026-09-25T11:50:00.000+00:00</time>
+    <name>Point 12</name>
+    <desc>2026-09-25 11:50 UTC COG = 19° SOG = 4.52nds TWS = 4.1nds TWA = -130° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.9375" lon="-4.9375">
+    <ele>0</ele>
+    <time>2026-09-25T12:00:00.000+00:00</time>
+    <name>Point 13</name>
+    <desc>2026-09-25 12:00 UTC COG = 26° SOG = 4.79nds TWS = 4.4nds TWA = -130° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.95305555555556" lon="-4.921944444444445">
+    <ele>0</ele>
+    <time>2026-09-25T12:10:00.000+00:00</time>
+    <name>Point 14</name>
+    <desc>2026-09-25 12:10 UTC COG = 29° SOG = 4.80nds TWS = 4.2nds TWA = -125° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.95305555555556" lon="-4.921944444444445">
+    <ele>0</ele>
+    <time>2026-09-25T12:20:00.000+00:00</time>
+    <name>Point 15</name>
+    <desc>2026-09-25 12:20 UTC COG = 33° SOG = 4.79nds TWS = 4.0nds TWA = -120° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.96888888888889" lon="-4.906388888888889">
+    <ele>0</ele>
+    <time>2026-09-25T12:30:00.000+00:00</time>
+    <name>Point 16</name>
+    <desc>2026-09-25 12:30 UTC COG = 38° SOG = 4.79nds TWS = 3.9nds TWA = -115° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.98444444444444" lon="-4.890555555555555">
+    <ele>0</ele>
+    <time>2026-09-25T12:40:00.000+00:00</time>
+    <name>Point 17</name>
+    <desc>2026-09-25 12:40 UTC COG = 48° SOG = 4.81nds TWS = 3.9nds TWA = -115° SAIL = LG</desc>
+</wpt>
+<wpt lat="49.98444444444444" lon="-4.875000000000001">
+    <ele>0</ele>
+    <time>2026-09-25T12:50:00.000+00:00</time>
+    <name>Point 18</name>
+    <desc>2026-09-25 12:50 UTC COG = 57° SOG = 4.96nds TWS = 4.1nds TWA = -115° SAIL = LG</desc>
+</wpt>
+<wpt lat="50" lon="-4.859444444444444">
+    <ele>0</ele>
+    <time>2026-09-25T13:00:00.000+00:00</time>
+    <name>Point 19</name>
+    <desc>2026-09-25 13:00 UTC COG = 65° SOG = 5.23nds TWS = 4.4nds TWA = -115° SAIL = LG</desc>
+</wpt>
+<wpt lat="50" lon="-4.8438888888888885">
+    <ele>0</ele>
+    <time>2026-09-25T13:10:00.000+00:00</time>
+    <name>Point 20</name>
+    <desc>2026-09-25 13:10 UTC COG = 74° SOG = 5.60nds TWS = 4.9nds TWA = -115° SAIL = LG</desc>
+</wpt>
+<wpt lat="50.01555555555556" lon="-4.7813888888888885">
+    <ele>0</ele>
+    <time>2026-09-25T13:30:00.000+00:00</time>
+    <name>Point 21</name>
+    <desc>2026-09-25 13:30 UTC COG = 79° SOG = 6.44nds TWS = 6.0nds TWA = -115° SAIL = LG</desc>
+</wpt>
+<wpt lat="50.03138888888889" lon="-4.625000000000001">
+    <ele>0</ele>
+    <time>2026-09-25T14:20:00.000+00:00</time>
+    <name>Point 22</name>
+    <desc>2026-09-25 14:20 UTC COG = 72° SOG = 7.94nds TWS = 8.0nds TWA = -115° SAIL = LG</desc>
+</wpt>
+<wpt lat="50.04694444444444" lon="-4.5938888888888885">
+    <ele>0</ele>
+    <time>2026-09-25T14:30:00.000+00:00</time>
+    <name>Point 23</name>
+    <desc>2026-09-25 14:30 UTC COG = 72° SOG = 8.22nds TWS = 8.2nds TWA = -120° SAIL = LG</desc>
+</wpt>
+<wpt lat="50.0625" lon="-4.515555555555555">
+    <ele>0</ele>
+    <time>2026-09-25T14:50:00.000+00:00</time>
+    <name>Point 24</name>
+    <desc>2026-09-25 14:50 UTC COG = 66° SOG = 8.49nds TWS = 8.5nds TWA = -120° SAIL = LG</desc>
+</wpt>
+<wpt lat="50.0625" lon="-4.484444444444445">
+    <ele>0</ele>
+    <time>2026-09-25T15:00:00.000+00:00</time>
+    <name>Point 25</name>
+    <desc>2026-09-25 15:00 UTC COG = 73° SOG = 8.76nds TWS = 8.9nds TWA = -120° SAIL = LG</desc>
+</wpt>
+<wpt lat="50.09388888888889" lon="-4.328055555555555">
+    <ele>0</ele>
+    <time>2026-09-25T15:40:00.000+00:00</time>
+    <name>Point 26</name>
+    <desc>2026-09-25 15:40 UTC COG = 80° SOG = 9.87nds TWS = 10.5nds TWA = -120° SAIL = LG</desc>
+</wpt>
+<wpt lat="50.125" lon="-4.0625">
+    <ele>0</ele>
+    <time>2026-09-25T16:40:00.000+00:00</time>
+    <name>Point 27</name>
+    <desc>2026-09-25 16:40 UTC COG = 90° SOG = 10.75nds TWS = 12.3nds TWA = -125° SAIL = LG</desc>
+</wpt>
+<wpt lat="50.125" lon="-3.8594444444444447">
+    <ele>0</ele>
+    <time>2026-09-25T17:20:00.000+00:00</time>
+    <name>Point 28</name>
+    <desc>2026-09-25 17:20 UTC COG = 77° SOG = 10.65nds TWS = 12.4nds TWA = -105° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.14055555555556" lon="-3.7969444444444442">
+    <ele>0</ele>
+    <time>2026-09-25T17:40:00.000+00:00</time>
+    <name>Point 29</name>
+    <desc>2026-09-25 17:40 UTC COG = 77° SOG = 10.56nds TWS = 12.2nds TWA = -99° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.156388888888884" lon="-3.7030555555555558">
+    <ele>0</ele>
+    <time>2026-09-25T18:00:00.000+00:00</time>
+    <name>Point 30</name>
+    <desc>2026-09-25 18:00 UTC COG = 78° SOG = 10.70nds TWS = 12.8nds TWA = -95° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.20305555555556" lon="-3.343888888888889">
+    <ele>0</ele>
+    <time>2026-09-25T19:20:00.000+00:00</time>
+    <name>Point 31</name>
+    <desc>2026-09-25 19:20 UTC COG = 80° SOG = 11.57nds TWS = 15.3nds TWA = -100° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.21888888888889" lon="-3.2344444444444447">
+    <ele>0</ele>
+    <time>2026-09-25T19:40:00.000+00:00</time>
+    <name>Point 32</name>
+    <desc>2026-09-25 19:40 UTC COG = 85° SOG = 12.16nds TWS = 16.7nds TWA = -105° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.23444444444444" lon="-2.8280555555555553">
+    <ele>0</ele>
+    <time>2026-09-25T21:00:00.000+00:00</time>
+    <name>Point 33</name>
+    <desc>2026-09-25 21:00 UTC COG = 85° SOG = 12.13nds TWS = 16.3nds TWA = -107° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.23444444444444" lon="-2.718888888888889">
+    <ele>0</ele>
+    <time>2026-09-25T21:20:00.000+00:00</time>
+    <name>Point 34</name>
+    <desc>2026-09-25 21:20 UTC COG = 86° SOG = 12.32nds TWS = 16.5nds TWA = -110° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.26555555555556" lon="-2.0780555555555558">
+    <ele>0</ele>
+    <time>2026-09-25T23:20:00.000+00:00</time>
+    <name>Point 35</name>
+    <desc>2026-09-25 23:20 UTC COG = 81° SOG = 11.41nds TWS = 14.8nds TWA = -100° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.28138888888889" lon="-1.8905555555555555">
+    <ele>0</ele>
+    <time>2026-09-26T00:00:00.000+00:00</time>
+    <name>Point 36</name>
+    <desc>2026-09-26 00:00 UTC COG = 80° SOG = 11.40nds TWS = 15.3nds TWA = -95° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.34388888888889" lon="-1.406388888888889">
+    <ele>0</ele>
+    <time>2026-09-26T01:40:00.000+00:00</time>
+    <name>Point 37</name>
+    <desc>2026-09-26 01:40 UTC COG = 80° SOG = 11.10nds TWS = 14.8nds TWA = -90° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.375" lon="-1.125">
+    <ele>0</ele>
+    <time>2026-09-26T02:40:00.000+00:00</time>
+    <name>Point 38</name>
+    <desc>2026-09-26 02:40 UTC COG = 77° SOG = 10.73nds TWS = 13.9nds TWA = -85° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.39055555555556" lon="-1.031388888888889">
+    <ele>0</ele>
+    <time>2026-09-26T03:00:00.000+00:00</time>
+    <name>Point 39</name>
+    <desc>2026-09-26 03:00 UTC COG = 78° SOG = 10.77nds TWS = 14.1nds TWA = -85° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.406388888888884" lon="-0.9375">
+    <ele>0</ele>
+    <time>2026-09-26T03:20:00.000+00:00</time>
+    <name>Point 40</name>
+    <desc>2026-09-26 03:20 UTC COG = 75° SOG = 10.58nds TWS = 14.0nds TWA = -80° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.45305555555556" lon="-0.6719444444444445">
+    <ele>0</ele>
+    <time>2026-09-26T04:20:00.000+00:00</time>
+    <name>Point 41</name>
+    <desc>2026-09-26 04:20 UTC COG = 72° SOG = 10.30nds TWS = 13.4nds TWA = -75° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.48444444444444" lon="-0.5">
+    <ele>0</ele>
+    <time>2026-09-26T05:00:00.000+00:00</time>
+    <name>Point 42</name>
+    <desc>2026-09-26 05:00 UTC COG = 80° SOG = 10.35nds TWS = 12.7nds TWA = -80° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.5" lon="-0.42194444444444446">
+    <ele>0</ele>
+    <time>2026-09-26T05:20:00.000+00:00</time>
+    <name>Point 43</name>
+    <desc>2026-09-26 05:20 UTC COG = 80° SOG = 10.26nds TWS = 12.6nds TWA = -78° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.5" lon="-0.32805555555555554">
+    <ele>0</ele>
+    <time>2026-09-26T05:40:00.000+00:00</time>
+    <name>Point 44</name>
+    <desc>2026-09-26 05:40 UTC COG = 79° SOG = 10.14nds TWS = 12.3nds TWA = -75° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.51555555555556" lon="-0.23444444444444446">
+    <ele>0</ele>
+    <time>2026-09-26T06:00:00.000+00:00</time>
+    <name>Point 45</name>
+    <desc>2026-09-26 06:00 UTC COG = 79° SOG = 9.89nds TWS = 12.0nds TWA = -72° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.53138888888889" lon="-0.15638888888888888">
+    <ele>0</ele>
+    <time>2026-09-26T06:20:00.000+00:00</time>
+    <name>Point 46</name>
+    <desc>2026-09-26 06:20 UTC COG = 89° SOG = 10.09nds TWS = 11.6nds TWA = -80° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.53138888888889" lon="0.015555555555555555">
+    <ele>0</ele>
+    <time>2026-09-26T07:00:00.000+00:00</time>
+    <name>Point 47</name>
+    <desc>2026-09-26 07:00 UTC COG = 90° SOG = 9.71nds TWS = 10.7nds TWA = -76° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.53138888888889" lon="0.26555555555555554">
+    <ele>0</ele>
+    <time>2026-09-26T08:00:00.000+00:00</time>
+    <name>Point 48</name>
+    <desc>2026-09-26 08:00 UTC COG = 91° SOG = 9.09nds TWS = 9.7nds TWA = -72° SAIL = Jib</desc>
+</wpt>
+<wpt lat="50.53138888888889" lon="0.42194444444444446">
+    <ele>0</ele>
+    <time>2026-09-26T08:40:00.000+00:00</time>
+    <name>Point 49</name>
+    <desc>2026-09-26 08:40 UTC COG = 84° SOG = 9.30nds TWS = 10.4nds TWA = -65° SAIL = LJ</desc>
+</wpt>
+<wpt lat="50.53138888888889" lon="0.4688888888888889">
+    <ele>0</ele>
+    <time>2026-09-26T09:00:00.000+00:00</time>
+    <name>Point 50</name>
+    <desc>2026-09-26 09:00 UTC COG = 79° SOG = 9.06nds TWS = 10.5nds TWA = -60° SAIL = LJ</desc>
+</wpt>
+<wpt lat="50.57805555555556" lon="1.093888888888889">
+    <ele>0</ele>
+    <time>2026-09-26T12:00:00.000+00:00</time>
+    <name>Point 51</name>
+    <desc>2026-09-26 12:00 UTC COG = 80° SOG = 7.68nds TWS = 8.4nds TWA = -57° SAIL = LJ</desc>
+</wpt>
+<wpt lat="50.67194444444444" lon="1.5155555555555555">
+    <ele>0</ele>
+    <time>2026-09-26T15:00:00.000+00:00</time>
+    <name>Point 52</name>
+    <desc>2026-09-26 15:00 UTC COG = 331° SOG = 6.72nds TWS = 6.9nds TWA = 58° SAIL = LJ</desc>
+</wpt>
+<wpt lat="51" lon="1.406388888888889">
+    <ele>0</ele>
+    <time>2026-09-26T18:00:00.000+00:00</time>
+    <name>Point 53</name>
+    <desc>2026-09-26 18:00 UTC COG = 5° SOG = 6.87nds TWS = 7.1nds TWA = 58° SAIL = LJ</desc>
+</wpt>
+<wpt lat="51.3125" lon="1.5">
+    <ele>0</ele>
+    <time>2026-09-26T21:00:00.000+00:00</time>
+    <name>Point 54</name>
+    <desc>2026-09-26 21:00 UTC COG = 27° SOG = 6.24nds TWS = 6.2nds TWA = 60° SAIL = LJ</desc>
+</wpt>
+<wpt lat="51.67194444444444" lon="1.718888888888889">
+    <ele>0</ele>
+    <time>2026-09-27T00:00:00.000+00:00</time>
+    <name>Point 55</name>
+    <desc>2026-09-27 00:00 UTC COG = 20° SOG = 8.64nds TWS = 9.1nds TWA = 70° SAIL = LJ</desc>
+</wpt>
+<wpt lat="52.0625" lon="1.8905555555555555">
+    <ele>0</ele>
+    <time>2026-09-27T03:00:00.000+00:00</time>
+    <name>Point 56</name>
+    <desc>2026-09-27 03:00 UTC COG = 27° SOG = 8.32nds TWS = 8.4nds TWA = 89° SAIL = Jib</desc>
+</wpt>
+<wpt lat="52.4375" lon="2.1094444444444447">
+    <ele>0</ele>
+    <time>2026-09-27T06:00:00.000+00:00</time>
+    <name>Point 57</name>
+    <desc>2026-09-27 06:00 UTC COG = 13° SOG = 8.89nds TWS = 9.0nds TWA = 120° SAIL = LG</desc>
+</wpt>
+<wpt lat="52.875" lon="2.3280555555555553">
+    <ele>0</ele>
+    <time>2026-09-27T09:00:00.000+00:00</time>
+    <name>Point 58</name>
+    <desc>2026-09-27 09:00 UTC COG = 24° SOG = 9.82nds TWS = 10.5nds TWA = 125° SAIL = LG</desc>
+</wpt>
+<wpt lat="53.29694444444444" lon="2.6094444444444447">
+    <ele>0</ele>
+    <time>2026-09-27T12:00:00.000+00:00</time>
+    <name>Point 59</name>
+    <desc>2026-09-27 12:00 UTC COG = 21° SOG = 8.93nds TWS = 10.4nds TWA = 137° SAIL = LG</desc>
+</wpt>
+<wpt lat="53.54694444444444" lon="2.3280555555555553">
+    <ele>0</ele>
+    <time>2026-09-27T15:00:00.000+00:00</time>
+    <name>Point 60</name>
+    <desc>2026-09-27 15:00 UTC COG = 300° SOG = 8.26nds TWS = 10.8nds TWA = -144° SAIL = LG</desc>
+</wpt>
+<wpt lat="53.9375" lon="2.3125">
+    <ele>0</ele>
+    <time>2026-09-27T18:00:00.000+00:00</time>
+    <name>Point 61</name>
+    <desc>2026-09-27 18:00 UTC COG = 21° SOG = 10.26nds TWS = 13.1nds TWA = 141° SAIL = LG</desc>
+</wpt>
+<wpt lat="54.39055555555556" lon="2.6875000000000004">
+    <ele>0</ele>
+    <time>2026-09-27T21:00:00.000+00:00</time>
+    <name>Point 62</name>
+    <desc>2026-09-27 21:00 UTC COG = 326° SOG = 9.90nds TWS = 12.7nds TWA = -142° SAIL = LG</desc>
+</wpt>
+<wpt lat="54.89055555555556" lon="2.25">
+    <ele>0</ele>
+    <time>2026-09-28T00:00:00.000+00:00</time>
+    <name>Point 63</name>
+    <desc>2026-09-28 00:00 UTC COG = 339° SOG = 12.81nds TWS = 17.1nds TWA = -140° SAIL = LG</desc>
+</wpt>
+<wpt lat="55.29694444444444" lon="2.0155555555555558">
+    <ele>0</ele>
+    <time>2026-09-28T03:00:00.000+00:00</time>
+    <name>Point 64</name>
+    <desc>2026-09-28 03:00 UTC COG = 22° SOG = 7.31nds TWS = 7.5nds TWA = -60° SAIL = LJ</desc>
+</wpt>
+<wpt lat="55.656388888888884" lon="2.4219444444444442">
+    <ele>0</ele>
+    <time>2026-09-28T06:00:00.000+00:00</time>
+    <name>Point 65</name>
+    <desc>2026-09-28 06:00 UTC COG = 42° SOG = 8.96nds TWS = 10.1nds TWA = -60° SAIL = LJ</desc>
+</wpt>
+<wpt lat="55.98444444444444" lon="2.9375000000000004">
+    <ele>0</ele>
+    <time>2026-09-28T09:00:00.000+00:00</time>
+    <name>Point 66</name>
+    <desc>2026-09-28 09:00 UTC COG = 42° SOG = 8.42nds TWS = 11.7nds TWA = -54° SAIL = LJ</desc>
+</wpt>
+<wpt lat="56.26555555555556" lon="3.468888888888889">
+    <ele>0</ele>
+    <time>2026-09-28T12:00:00.000+00:00</time>
+    <name>Point 67</name>
+    <desc>2026-09-28 12:00 UTC COG = 302° SOG = 7.36nds TWS = 8.5nds TWA = 55° SAIL = LJ</desc>
+</wpt>
+<wpt lat="56.4375" lon="2.9219444444444442">
+    <ele>0</ele>
+    <time>2026-09-28T15:00:00.000+00:00</time>
+    <name>Point 68</name>
+    <desc>2026-09-28 15:00 UTC COG = 288° SOG = 6.34nds TWS = 6.5nds TWA = 58° SAIL = LJ</desc>
+</wpt>
+<wpt lat="56.48444444444444" lon="2.4530555555555558">
+    <ele>0</ele>
+    <time>2026-09-28T18:00:00.000+00:00</time>
+    <name>Point 69</name>
+    <desc>2026-09-28 18:00 UTC COG = 283° SOG = 5.60nds TWS = 5.7nds TWA = 58° SAIL = LJ</desc>
+</wpt>
+<wpt lat="56.57805555555556" lon="2.1094444444444447">
+    <ele>0</ele>
+    <time>2026-09-28T21:00:00.000+00:00</time>
+    <name>Point 70</name>
+    <desc>2026-09-28 21:00 UTC COG = 333° SOG = 4.17nds TWS = 3.9nds TWA = 59° SAIL = LJ</desc>
+</wpt>
+<wpt lat="56.84388888888889" lon="1.9844444444444445">
+    <ele>0</ele>
+    <time>2026-09-29T00:00:00.000+00:00</time>
+    <name>Point 71</name>
+    <desc>2026-09-29 00:00 UTC COG = 315° SOG = 6.50nds TWS = 6.0nds TWA = 120° SAIL = LG</desc>
+</wpt>
+<wpt lat="57.156388888888884" lon="1.6094444444444445">
+    <ele>0</ele>
+    <time>2026-09-29T03:00:00.000+00:00</time>
+    <name>Point 72</name>
+    <desc>2026-09-29 03:00 UTC COG = 340° SOG = 8.88nds TWS = 9.0nds TWA = 120° SAIL = LG</desc>
+</wpt>
+<wpt lat="57.64055555555556" lon="1.2655555555555555">
+    <ele>0</ele>
+    <time>2026-09-29T06:00:00.000+00:00</time>
+    <name>Point 73</name>
+    <desc>2026-09-29 06:00 UTC COG = 342° SOG = 11.19nds TWS = 13.4nds TWA = 123° SAIL = LG</desc>
+</wpt>
+<wpt lat="58.17194444444444" lon="0.9530555555555555">
+    <ele>0</ele>
+    <time>2026-09-29T09:00:00.000+00:00</time>
+    <name>Point 74</name>
+    <desc>2026-09-29 09:00 UTC COG = 341° SOG = 11.15nds TWS = 13.1nds TWA = 130° SAIL = LG</desc>
+</wpt>
+<wpt lat="58.73444444444444" lon="0.5780555555555555">
+    <ele>0</ele>
+    <time>2026-09-29T12:00:00.000+00:00</time>
+    <name>Point 75</name>
+    <desc>2026-09-29 12:00 UTC COG = 341° SOG = 11.97nds TWS = 14.4nds TWA = 128° SAIL = LG</desc>
+</wpt>
+<wpt lat="59.35944444444445" lon="0.15638888888888888">
+    <ele>0</ele>
+    <time>2026-09-29T15:00:00.000+00:00</time>
+    <name>Point 76</name>
+    <desc>2026-09-29 15:00 UTC COG = 343° SOG = 13.62nds TWS = 18.5nds TWA = 130° SAIL = LG</desc>
+</wpt>
+<wpt lat="59.96888888888889" lon="-0.21888888888888888">
+    <ele>0</ele>
+    <time>2026-09-29T18:00:00.000+00:00</time>
+    <name>Point 77</name>
+    <desc>2026-09-29 18:00 UTC COG = 347° SOG = 13.94nds TWS = 19.1nds TWA = 135° SAIL = HG</desc>
+</wpt>
+<wpt lat="60.656388888888884" lon="-0.5938888888888889">
+    <ele>0</ele>
+    <time>2026-09-29T21:00:00.000+00:00</time>
+    <name>Point 78</name>
+    <desc>2026-09-29 21:00 UTC COG = 344° SOG = 14.32nds TWS = 20.0nds TWA = 140° SAIL = HG</desc>
+</wpt>
+</gpx>
