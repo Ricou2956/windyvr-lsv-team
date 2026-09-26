@@ -10,12 +10,32 @@ jobs:
       WINDY_API_KEY: '${{ secrets.WINDY_API_KEY }}'
 
     steps:
+      - name: Require main branch
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Publication is only allowed from main" >&2
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
 
       - name: Build
         run: |
           npm install
           npm run build
+
+      - name: Require final plugin version
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const finalVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/;
+          for (const file of ['package.json', 'dist/plugin.json']) {
+            const { version } = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (typeof version !== 'string' || !finalVersion.test(version)) {
+              throw new Error(`Publication refused: ${file} version ${version} is not a final version`);
+            }
+          }
+          NODE
 
       - name: Publish Plugin
         run: |

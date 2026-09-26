@@ -1,124 +1,107 @@
-﻿$ErrorActionPreference = "Stop"
-
-$Repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$ErrorActionPreference = "Stop"
 $Branch = "dev-v1.2.0"
+$RemoteRef = "refs/remotes/origin/$Branch"
 
-Set-Location $Repo
-
-Clear-Host
-Write-Host "==============================================" -ForegroundColor Cyan
-Write-Host "        WINDYVR LSV - FIN TRAVAIL" -ForegroundColor Cyan
-Write-Host "==============================================" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Projet  : $Repo"
-Write-Host "Branche : $Branch"
-Write-Host ""
-
-$currentBranch = git branch --show-current
-
-if ($currentBranch -ne $Branch) {
-    Write-Host "SECURITE : tu n'es pas sur $Branch." -ForegroundColor Red
-    Write-Host "Branche actuelle : $currentBranch" -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "Aucun commit et aucun push ne seront effectues." -ForegroundColor Red
-    Read-Host "Appuie sur Entree pour fermer"
-    exit 1
+function Invoke-Git {
+    & git @args
+    if ($LASTEXITCODE -ne 0) {
+        throw "Echec Git : git $($args -join ' ') (code $LASTEXITCODE)."
+    }
 }
 
-$changes = git status --porcelain
+function Assert-Repository {
+    $root = Invoke-Git rev-parse --show-toplevel
+    if ((Resolve-Path -LiteralPath $root).Path -ne $Repo) {
+        throw "Le dossier du script n'est pas la racine du depot attendu : $Repo."
+    }
+    $currentBranch = Invoke-Git branch --show-current
+    if ($currentBranch -ne $Branch) {
+        throw "Branche obligatoire : $Branch. Branche actuelle : '$currentBranch'. Aucun changement automatique."
+    }
+    foreach ($marker in @('MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'REBASE_HEAD', 'rebase-merge', 'rebase-apply', 'sequencer', 'BISECT_START')) {
+        $path = Invoke-Git rev-parse --git-path $marker
+        if (Test-Path -LiteralPath $path) {
+            throw "Operation Git inachevee ($marker). La resoudre avant de relancer ce script."
+        }
+    }
+    $origin = Invoke-Git remote get-url origin
+    if ($origin -notin @('https://github.com/Ricou2956/windyvr-lsv-team.git', 'https://github.com/Ricou2956/windyvr-lsv-team', 'git@github.com:Ricou2956/windyvr-lsv-team.git')) {
+        throw "Origin inattendu : $origin. Verifier le depot avant de continuer."
+    }
+}
 
-if (-not $changes) {
-    Write-Host "Aucune modification locale a enregistrer." -ForegroundColor Green
-    Write-Host ""
-    Write-Host "Verification de GitHub..." -ForegroundColor Cyan
+function Get-SyncState {
+    $counts = Invoke-Git rev-list --left-right --count "HEAD...$RemoteRef"
+    if ($counts -notmatch '^\s*(\d+)\s+(\d+)\s*$') {
+        throw "Impossible de determiner l'alignement avec origin/$Branch."
+    }
+    return @([long]$Matches[1], [long]$Matches[2])
+}
 
-    git pull --rebase origin $Branch
+try {
+    $Repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+    Set-Location -LiteralPath $Repo
+    Write-Host "WINDYVR - FIN TRAVAIL : $Repo ($Branch)" -ForegroundColor Cyan
+    Assert-Repository
+    $changes = Invoke-Git status --porcelain --untracked-files=all
 
-    Write-Host ""
-    git status
-    Write-Host ""
+    Invoke-Git fetch origin "refs/heads/${Branch}:$RemoteRef" | Out-Host
+    $ahead, $behind = Get-SyncState
+    if (($ahead -gt 0) -and ($behind -gt 0)) {
+        throw "Divergence avec origin/$Branch. Resolution manuelle necessaire ; aucun rebase ni push force."
+    }
+    if ($behind -gt 0) {
+        if ($changes) {
+            throw "Branche en retard avec modifications locales. Resolution manuelle necessaire avant commit."
+        }
+        Invoke-Git merge --ff-only $RemoteRef | Out-Host
+    }
+
+    if ($changes -or ($ahead -gt 0)) {
+        Invoke-Git status --short | Out-Host
+        Write-Host "$ahead commit(s) local(aux) deja en attente d'envoi." -ForegroundColor Yellow
+        $confirmation = Read-Host "Veux-tu enregistrer les modifications et envoyer les commits sur GitHub ? (O/N)"
+        if ($confirmation -notmatch '^[OoYy]$') {
+            Write-Host "Operation annulee. Synchronisation non confirmee." -ForegroundColor Yellow
+            Read-Host "Appuie sur Entree pour fermer"
+            exit 0
+        }
+        if ($changes) {
+            $message = Read-Host "Message du commit"
+            if ([string]::IsNullOrWhiteSpace($message)) {
+                throw "Le message du commit ne peut pas etre vide."
+            }
+            Invoke-Git add . | Out-Host
+            Invoke-Git commit -m $message | Out-Host
+        }
+    }
+
+    Assert-Repository
+    if (Invoke-Git status --porcelain --untracked-files=all) {
+        throw "Modifications locales restantes. Synchronisation interrompue."
+    }
+    $ahead, $behind = Get-SyncState
+    if ($behind -gt 0) {
+        throw "Branche non alignee. Aucun push effectue."
+    }
+    if ($ahead -gt 0) {
+        Invoke-Git push origin "refs/heads/${Branch}:refs/heads/$Branch" | Out-Host
+    }
+
+    # Relire la branche distante apres l'envoi, y compris si aucun commit n'etait necessaire.
+    Invoke-Git fetch origin "refs/heads/${Branch}:$RemoteRef" | Out-Host
+    Assert-Repository
+    $ahead, $behind = Get-SyncState
+    if (($ahead -ne 0) -or ($behind -ne 0) -or (Invoke-Git status --porcelain --untracked-files=all)) {
+        throw "Verification finale echouee : depot non propre ou non aligne avec origin/$Branch. Ne pas passer sur l'autre PC."
+    }
+    Write-Host "WINDYVR est propre et aligne avec origin/$Branch. Tu peux passer sur l'autre PC." -ForegroundColor Green
     Read-Host "Appuie sur Entree pour fermer"
     exit 0
 }
-
-Write-Host "Fichiers modifies :" -ForegroundColor Yellow
-Write-Host ""
-git status --short
-Write-Host ""
-
-$confirmation = Read-Host "Veux-tu enregistrer et envoyer ces modifications sur GitHub ? (O/N)"
-
-if ($confirmation -notmatch '^[OoYy]$') {
-    Write-Host ""
-    Write-Host "Operation annulee. Aucun fichier n'a ete envoye." -ForegroundColor Yellow
-    Read-Host "Appuie sur Entree pour fermer"
-    exit 0
-}
-
-$message = Read-Host "Message du commit"
-
-if ([string]::IsNullOrWhiteSpace($message)) {
-    Write-Host ""
-    Write-Host "Le message du commit ne peut pas etre vide." -ForegroundColor Red
+catch {
+    Write-Host "ERREUR : $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Synchronisation non confirmee. Ne pas passer sur l'autre PC ; ne pas forcer le push." -ForegroundColor Yellow
     Read-Host "Appuie sur Entree pour fermer"
     exit 1
 }
-
-Write-Host ""
-Write-Host "Ajout des modifications..." -ForegroundColor Cyan
-git add .
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERREUR pendant git add." -ForegroundColor Red
-    Read-Host "Appuie sur Entree pour fermer"
-    exit 1
-}
-
-Write-Host ""
-git status --short
-Write-Host ""
-
-Write-Host "Creation du commit..." -ForegroundColor Cyan
-git commit -m "$message"
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERREUR pendant le commit." -ForegroundColor Red
-    Read-Host "Appuie sur Entree pour fermer"
-    exit 1
-}
-
-Write-Host ""
-Write-Host "Verification des modifications distantes..." -ForegroundColor Cyan
-git pull --rebase origin $Branch
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host ""
-    Write-Host "ERREUR pendant le rebase." -ForegroundColor Red
-    Write-Host "NE PAS forcer le Push." -ForegroundColor Yellow
-    Read-Host "Appuie sur Entree pour fermer"
-    exit 1
-}
-
-Write-Host ""
-Write-Host "Envoi vers GitHub..." -ForegroundColor Cyan
-git push origin $Branch
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host ""
-    Write-Host "ERREUR pendant le Push." -ForegroundColor Red
-    Read-Host "Appuie sur Entree pour fermer"
-    exit 1
-}
-
-Write-Host ""
-git status
-
-Write-Host ""
-Write-Host "==============================================" -ForegroundColor Green
-Write-Host "    TRAVAIL WINDYVR ENREGISTRE SUR GITHUB" -ForegroundColor Green
-Write-Host "==============================================" -ForegroundColor Green
-Write-Host ""
-Write-Host "Tu peux maintenant passer sur l'autre PC." -ForegroundColor Green
-Write-Host ""
-
-Read-Host "Appuie sur Entree pour fermer"
