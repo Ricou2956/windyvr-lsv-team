@@ -6,7 +6,7 @@ import os from 'node:os';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const [browser,fixtures]=process.argv.slice(2);
+const [browser,fixtures,page='sermar.browser.html']=process.argv.slice(2);
 if(!browser) throw Error('Provide a Chromium/Edge executable path.');
 const server=http.createServer((req,res)=>{
  try {
@@ -21,7 +21,7 @@ const server=http.createServer((req,res)=>{
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const profile=fs.mkdtempSync(path.join(os.tmpdir(),'windyvr-sermar-'));
-const child=spawn(browser,['--headless','--disable-gpu','--no-first-run','--no-default-browser-check','--user-data-dir='+profile,'--dump-dom','--virtual-time-budget=10000','http://127.0.0.1:'+server.address().port+'/tests/sermar.browser.html'+(fixtures?'?fixtures=1':'')],{windowsHide:true});
+const child=spawn(browser,['--headless','--disable-gpu','--no-first-run','--no-default-browser-check','--user-data-dir='+profile,'--dump-dom','--virtual-time-budget=10000','http://127.0.0.1:'+server.address().port+'/tests/'+page+(fixtures?'?fixtures=1':'')],{windowsHide:true});
 let output='',errors='';child.stdout.on('data',d=>output+=d);child.stderr.on('data',d=>errors+=d);
 const timeout=setTimeout(()=>child.kill(),45000);
 try {

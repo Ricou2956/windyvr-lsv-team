@@ -1,5 +1,14 @@
 # WindyVR LSV Team 1.2.0-rc.1 — validation avant publication
 
+## Validation réelle RBR acceptée — 28 septembre 2026
+
+Eric et le coordinateur Cloud confirment : correction du décrochage AVALON et reconnaissance VRZen ; import/analyse des six fichiers sans erreur météo ; ETA non comparables correctement affichées ; couverture complète des routes partielles ZEZO et partielle des autres ; Tab et Maj+Tab fonctionnels, Échap ferme la synthèse ; fermeture/réouverture avec suppression des routes et objets cartographiques. L'état hors plage avait été observé sur Honolulu–Yokohama. Ces points sont désormais consignés et ne sont pas à rejouer sans raison.
+
+Seul défaut de présentation signalé : titre « ETA non comparables » collé à l'explication. Correction ciblée dans src/plugin.svelte : conteneur en colonne avec un espacement de 4 px, titre et explication sur deux lignes distinctes. Aucun changement de calcul ni d'export.
+
+Dorado reste non retesté en conditions réelles : service actuellement indisponible selon Eric. Ce point est explicitement non validé ; attendre sa disponibilité ou une décision du coordinateur sur cette réserve avant finalisation. La version reste 1.2.0-rc.1 ; commit/push des correctifs autorisés uniquement sur dev-v1.2.0, sans passage sur main, tag final ou publication.
+
+
 ## Validation acceptée — lot Honolulu–Yokohama (28 septembre 2026)
 
 Eric et le coordinateur Cloud valident les essais Windy du lot SERMAR/AVALON après les corrections, y compris le suivi de la copie du monde visible : tracés, calque de risque, affichage météo, sous-titre, diagnostic et PDF conformes. Aucun défaut restant signalé sur ce lot. Cette confirmation clôt les demandes de revalidation du lot figurant dans l'historique ci-dessous.
@@ -8,9 +17,7 @@ Les imports, horaires/effectifs, analyse sans erreur, 324 appels servis par le c
 
 ### Vérifications réellement restantes avant publication
 
-- Consigner les essais Windy des routeurs historiques hors lot validé : Dorado, VRZen, ZEZO/RouteMarins et eSail4VR (dont une route ne franchissant pas l'antiméridien). AVALON est validé sur le lot présent ; ne pas le rejouer sans motif.
-- Consigner fermeture/réouverture, états hors plage et navigation clavier dans Windy : aucune validation réelle explicite de ces points n'est encore enregistrée. Les tests automatisés ne valent pas validation Windy.
-- Confirmer le scénario ETA non comparable entre destinations différentes si aucun résultat réel n'est disponible ; le lot actuel seul ne prouve pas ce scénario.
+- Dorado : essai réel non réalisé, service indisponible selon Eric. Les validations RBR, ETA, clavier, fermeture/réouverture et hors plage sont consignées ci-dessus.
 - Après clôture de ces points et décision de finalisation, synchroniser les versions finales, exécuter tests/build sur cette version, puis suivre la procédure manuelle de publication. Ces opérations ne sont pas réalisées à cette étape.
 
 Version maintenue à **1.2.0-rc.1**, branche **dev-v1.2.0**. L'enregistrement et le push du commit de mission sont autorisés ; aucun passage sur main, tag final ou publication. L'identifiant du commit et l'état de synchronisation sont fournis dans le retour de livraison Git.
@@ -74,3 +81,22 @@ Résultat visuel du correctif : **validé par Eric et le coordinateur Cloud sur 
 La capture montre une carte centrée vers +159°, alors que le premier correctif maintenait les tracés dans une copie à longitudes négatives (environ −218° à −158°). Le repère fixe ne suivait pas le recentrage du fond Windy. Correction complémentaire : décalage commun de 360° selon le centre visible, actualisé sur moveend pour routes, marqueurs et risques ; abonnement retiré à la fermeture. Le cadrage et les passages sensibles utilisent ce même repère. Tests de régression : centres +159°, −201° et +519°, avant/après analyse, sans mutation des sources. Validation visuelle Windy reçue pour ce lot (voir validation acceptée en tête du document).
 
 La page localhost/plugin.js affiche normalement du code. Pour recharger cette correction : dans le panneau Developer mode de Windy, saisir https://localhost:9999/plugin.js?rc1=antimeridien-2 puis cliquer « Install & open plugin ». Réimporter les quatre fichiers et vérifier leur visibilité avant analyse, puis après analyse et après déplacement/zoom de la carte. Version conservée : 1.2.0-rc.1 ; aucune publication.
+
+
+## Correctif import — Round Britain Record du 28 septembre 2026
+
+Départ propre sur dev-v1.2.0, commit 76cfe91 ; version maintenue à 1.2.0-rc.1. Les validations Honolulu–Yokohama précédentes restent acquises. Deux défauts confirmés dans le parseur : num tronquait les exposants, et la signature générique ZEZO précédait la signature VRZen sans reconnaître DTF(nm).
+
+Lecture numérique : champ complet, décimale point/virgule, exposant E/e signé ou non, suffixes d'unités reconnus. Les exposants incomplets, valeurs non finies et textes parasites renvoient null ; aucun préfixe numérique trompeur n'est accepté. Les coordonnées réelles AVALON ne sont ni modifiées ni filtrées. La même lecture s'applique aux champs CSV et GPX (attributs, extensions, nombres des descriptions).
+
+Détection : la signature spécifique VRZen (TTW, MODE, BestUpVMG, BestDwnVMG, HDG, TWA, DTF(nm)/DTF) précède la signature générique ZEZO. Le vrai export ZEZO du lot réutilise ces colonnes et ajoute BTW/ATWA/ABTW : cette signature d'extracteur reste prioritairement ZEZO. Les exports RouteMarins GPX restent ZEZO. DateHeure(UTC) est prioritaire et son interprétation UTC dépend uniquement de la colonne, pas du routeur détecté ; les dates GPX explicites restent inchangées.
+
+Fichiers : src/routeParser.js, package.json, tests/rbrImport.test.mjs, tests/rbr.browser.html, lanceur tests/sermar.browser.mjs étendu pour choisir la page de test, fixtures tests/routes/2026-09-28 (copies inchangées des AVALON CSV/GPX, VRZen CSV, ZEZO CSV et RouteMarins GPX), et suivi existant.
+
+Résultats sur fichiers réels, avec DOMParser natif Edge pour les GPX : 1 324 points AVALON CSV/GPX égaux, horaires uniques et croissants, aucun point écarté. Point 368 : latitude 55.35919952392578, longitude −0.0007279012352228165, instant 2026-09-30T21:45:00Z (23:45 Europe/Paris). Segment maximal : 2,23568 milles. VRZen : 204 points, premier instant 2026-09-28T08:54:00Z. ZEZO/RouteMarins inchangés. Tests numériques invalides/exposants/unités et UTC exécutés sous Europe/Paris, UTC et America/New_York.
+
+Procédure historique, désormais validée sur le lot RBR : charger https://localhost:9999/plugin.js?rc1=rbr-import-1 dans Developer mode puis « Install & open plugin », réimporter AVALON CSV/GPX et VRZen du lot RBR. Vérifier l'absence d'excursion près de Greenwich autour du 30 septembre à 23:45 locale, les 1 324 points AVALON, la source VRZen avec 204 points et son départ à 10:54 Europe/Paris (08:54 UTC). Confirmer ZEZO sur le vrai export de l'extracteur. Les essais cycle de vie/clavier sont désormais consignés ; Dorado demeure non retesté. Aucun changement de version finale, fusion, tag ou publication.
+
+Validation locale finale du correctif RBR : npm test réussi, y compris SERMAR et antiméridien ; tests RBR réussis sous Europe/Paris, UTC et America/New_York ; DOMParser natif Edge réussi sur les fichiers réels ; npm run build:win réussi. Les cinq fixtures sont identiques aux exports originaux (SHA-256). Le serveur existant répond en HTTPS 200 et sert bien parseRouteNumber, la nouvelle signature VRZen et la règle UTC indépendante ; manifeste 1.2.0-rc.1. git diff --check sans erreur. État historique avant la demande de commit/push : modifications locales sur dev-v1.2.0, HEAD 76cfe91. Validation visuelle Windy du lot RBR corrigé reçue d’Eric et du coordinateur Cloud.
+
+Verification de presentation : controle Edge du titre et de son explication sur deux lignes, espacement minimal de 4 px confirme ; build Windows reussi. Les tests complets du correctif RBR avaient deja reussi et la validation reelle est recue ; ils ne sont pas rejoues pour cette seule modification CSS.

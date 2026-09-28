@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><pre id="result">RUNNING</pre><script type="module">
+import {parseCsv,parseGpx} from '/src/routeParser.js';
+const check=(ok,label)=>{if(!ok)throw Error(label)};
+const read=async name=>{const r=await fetch('/tests/routes/2026-09-28/'+encodeURIComponent(name));if(!r.ok)throw Error(name);return r.text()};
+try{
+ const ct=await read('AVALON route-28_09_10_50.csv'),gt=await read('AVALON gpx-avalon.gpx');
+ const c=parseCsv(ct,{now:new Date(2026,8,28)}),g=parseGpx(gt),xml=new DOMParser().parseFromString(gt,'application/xml');
+ const raw=[...xml.querySelectorAll('wpt')];check(c.points.length===1324 && g.points.length===1324,'point counts');
+ let max=0;const rad=x=>x*Math.PI/180;
+ for(let i=0;i<1324;i++){
+  const a=c.points[i],b=g.points[i];check(a.lat===b.lat && a.lon===b.lon,'CSV/GPX coordinates '+i);
+  check(b.lat===Number(raw[i].getAttribute('lat')) && b.lon===Number(raw[i].getAttribute('lon')),'raw GPX '+i);
+  check(+a.time===+b.time,'CSV local Paris / explicit GPX time '+i);
+  if(i){const prev=g.points[i-1];check(+b.time>+prev.time,'ordered unique');const h=Math.sin(rad(b.lat-prev.lat)/2)**2+Math.cos(rad(prev.lat))*Math.cos(rad(b.lat))*Math.sin(rad(b.lon-prev.lon)/2)**2;max=Math.max(max,3440.065*2*Math.asin(Math.sqrt(h)));}
+ }
+ check(g.points[368].lon===-0.0007279012352228165,'scientific longitude');check(g.points[368].time.toISOString()==='2026-09-30T21:45:00.000Z','reference time');check(max>2.2 && max<2.3,'no artificial excursion');
+ for(const r of [c,g])check(r.qualityMeta.discardedInvalidPositions===0,'no filtered points');
+ const v=parseCsv(await read('VRZEN_RBREC26_20260928T085439Z.csv'));check(v.source==='VRZen' && v.points.length===204,'VRZen');check(v.points[0].time.toISOString()==='2026-09-28T08:54:00.000Z','VRZen UTC');
+ check(parseCsv(await read('GPX EXTRAVTOR zezo_data.csv')).source==='ZEZO','ZEZO real CSV');check(parseGpx(await read('RouteMarins_Round-Britain-Record_2026-09-28.gpx')).source==='ZEZO','RouteMarins GPX');
+ for(const lon of ['1e','1e+','1E-','1e2x']){const bad=parseGpx('<gpx><wpt lat="50" lon="-5"><time>2026-09-28T00:00:00Z</time></wpt><wpt lat="50" lon="'+lon+'"><time>2026-09-28T00:10:00Z</time></wpt><wpt lat="50" lon="-4"><time>2026-09-28T00:20:00Z</time></wpt></gpx>');check(bad.points.length===2 && bad.qualityMeta.discardedInvalidPositions===1,'invalid GPX numeric');}
+ document.querySelector('#result').textContent='PASS: native DOMParser; 1324 CSV/GPX points equal, no points filtered; longitude '+g.points[368].lon+'; time '+g.points[368].time.toISOString()+'; max segment '+max.toFixed(5)+' nm; VRZen 204 points 08:54Z; ZEZO/RouteMarins unchanged';
+}catch(e){document.querySelector('#result').textContent='FAIL '+e.stack}
+</script>

@@ -1,0 +1,254 @@
+<?xml version="1.0"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd" version="1.1" creator="RouteMarins">
+  <metadata>
+    <link href="https://chromewebstore.google.com/detail/routemarins/imipnigmdedacnmjnkoepkigpicdjmje">
+      <text>RouteMarins</text>
+    </link>
+    <time>2026-09-28T08:51:56.668Z</time>
+  </metadata>
+  <wpt lat="49.84375" lon="-5.203125">
+    <time>2026-09-28T08:50:00.000Z</time>
+    <name>2026-09-28T08:50:00.000Z</name>
+    <desc>HDG: 40° TWA: 57°  LJ SOG: 7.02 kts TWS:7.5 kt</desc>
+  </wpt>
+  <wpt lat="49.859375" lon="-5.1875">
+    <time>2026-09-28T09:00:00.000Z</time>
+    <name>2026-09-28T09:00:00.000Z</name>
+    <desc>HDG: 40° TWA: 56°  LJ SOG: 6.93 kts TWS:7.6 kt</desc>
+  </wpt>
+  <wpt lat="49.921875" lon="-5.109375">
+    <time>2026-09-28T09:40:00.000Z</time>
+    <name>2026-09-28T09:40:00.000Z</name>
+    <desc>HDG: 31° TWA: 60°  LJ SOG: 7.50 kts TWS:7.7 kt</desc>
+  </wpt>
+  <wpt lat="49.984375" lon="-5.046875">
+    <time>2026-09-28T10:20:00.000Z</time>
+    <name>2026-09-28T10:20:00.000Z</name>
+    <desc>HDG: 143° TWA: -57°  LJ SOG: 7.15 kts TWS:7.7 kt</desc>
+  </wpt>
+  <wpt lat="49.828125" lon="-4.859375">
+    <time>2026-09-28T12:00:00.000Z</time>
+    <name>2026-09-28T12:00:00.000Z</name>
+    <desc>HDG: 141° TWA: -55°  LJ SOG: 7.85 kts TWS:9.2 kt</desc>
+  </wpt>
+  <wpt lat="49.625" lon="-4.609375">
+    <time>2026-09-28T13:50:00.000Z</time>
+    <name>2026-09-28T13:50:00.000Z</name>
+    <desc>HDG: 146° TWA: -60°  LJ SOG: 9.24 kts TWS:11.6 kt</desc>
+  </wpt>
+  <wpt lat="49.609375" lon="-4.578125">
+    <time>2026-09-28T14:00:00.000Z</time>
+    <name>2026-09-28T14:00:00.000Z</name>
+    <desc>HDG: 139° TWA: -54°  LJ SOG: 8.43 kts TWS:11.7 kt</desc>
+  </wpt>
+  <wpt lat="49.5" lon="-4.4375">
+    <time>2026-09-28T15:00:00.000Z</time>
+    <name>2026-09-28T15:00:00.000Z</name>
+    <desc>HDG: 138° TWA: -55°  LJ SOG: 8.74 kts TWS:12.6 kt</desc>
+  </wpt>
+  <wpt lat="49.171875" lon="-3.984375">
+    <time>2026-09-28T18:00:00.000Z</time>
+    <name>2026-09-28T18:00:00.000Z</name>
+    <desc>HDG: 140° TWA: -54°  LJ SOG: 8.75 kts TWS:13.1 kt</desc>
+  </wpt>
+  <wpt lat="49.0625" lon="-3.84375">
+    <time>2026-09-28T19:00:00.000Z</time>
+    <name>2026-09-28T19:00:00.000Z</name>
+    <desc>HDG: 37° TWA: 54°  LJ SOG: 8.82 kts TWS:13.3 kt</desc>
+  </wpt>
+  <wpt lat="49.171875" lon="-3.71875">
+    <time>2026-09-28T20:00:00.000Z</time>
+    <name>2026-09-28T20:00:00.000Z</name>
+    <desc>HDG: 40° TWA: 55°  LJ SOG: 9.15 kts TWS:14.1 kt</desc>
+  </wpt>
+  <wpt lat="49.203125" lon="-3.671875">
+    <time>2026-09-28T20:20:00.000Z</time>
+    <name>2026-09-28T20:20:00.000Z</name>
+    <desc>HDG: 46° TWA: 51°  LJ SOG: 8.60 kts TWS:14.5 kt</desc>
+  </wpt>
+  <wpt lat="49.28125" lon="-3.5625">
+    <time>2026-09-28T21:00:00.000Z</time>
+    <name>2026-09-28T21:00:00.000Z</name>
+    <desc>HDG: 46° TWA: 52°  LJ SOG: 8.98 kts TWS:15.0 kt</desc>
+  </wpt>
+  <wpt lat="49.3125" lon="-3.515625">
+    <time>2026-09-28T21:20:00.000Z</time>
+    <name>2026-09-28T21:20:00.000Z</name>
+    <desc>HDG: 42° TWA: 55°  LJ SOG: 9.39 kts TWS:15.1 kt</desc>
+  </wpt>
+  <wpt lat="49.34375" lon="-3.453125">
+    <time>2026-09-28T21:40:00.000Z</time>
+    <name>2026-09-28T21:40:00.000Z</name>
+    <desc>HDG: 45° TWA: 50°  LJ SOG: 8.72 kts TWS:15.2 kt</desc>
+  </wpt>
+  <wpt lat="49.59375" lon="-3.078125">
+    <time>2026-09-29T00:00:00.000Z</time>
+    <name>2026-09-29T00:00:00.000Z</name>
+    <desc>HDG: 47° TWA: 50°  LJ SOG: 8.86 kts TWS:17.8 kt</desc>
+  </wpt>
+  <wpt lat="49.6875" lon="-2.90625">
+    <time>2026-09-29T01:00:00.000Z</time>
+    <name>2026-09-29T01:00:00.000Z</name>
+    <desc>HDG: 52° TWA: 50°  LJ SOG: 9.00 kts TWS:16.4 kt</desc>
+  </wpt>
+  <wpt lat="49.8125" lon="-2.671875">
+    <time>2026-09-29T02:20:00.000Z</time>
+    <name>2026-09-29T02:20:00.000Z</name>
+    <desc>HDG: 57° TWA: 50°  LJ SOG: 8.99 kts TWS:16.6 kt</desc>
+  </wpt>
+  <wpt lat="49.875" lon="-2.53125">
+    <time>2026-09-29T03:00:00.000Z</time>
+    <name>2026-09-29T03:00:00.000Z</name>
+    <desc>HDG: 56° TWA: 53°  LJ SOG: 9.35 kts TWS:16.7 kt</desc>
+  </wpt>
+  <wpt lat="50.125" lon="-1.921875">
+    <time>2026-09-29T06:00:00.000Z</time>
+    <name>2026-09-29T06:00:00.000Z</name>
+    <desc>HDG: 58° TWA: 60°  LJ SOG: 9.90 kts TWS:15.8 kt</desc>
+  </wpt>
+  <wpt lat="50.1875" lon="-1.78125">
+    <time>2026-09-29T06:40:00.000Z</time>
+    <name>2026-09-29T06:40:00.000Z</name>
+    <desc>HDG: 61° TWA: 64°  LJ SOG: 10.05 kts TWS:15.0 kt</desc>
+  </wpt>
+  <wpt lat="50.25" lon="-1.625">
+    <time>2026-09-29T07:20:00.000Z</time>
+    <name>2026-09-29T07:20:00.000Z</name>
+    <desc>HDG: 68° TWA: 65°  LJ SOG: 10.04 kts TWS:14.5 kt</desc>
+  </wpt>
+  <wpt lat="50.265625" lon="-1.546875">
+    <time>2026-09-29T07:40:00.000Z</time>
+    <name>2026-09-29T07:40:00.000Z</name>
+    <desc>HDG: 70° TWA: 69°  LJ SOG: 10.15 kts TWS:14.4 kt</desc>
+  </wpt>
+  <wpt lat="50.3125" lon="-1.328125">
+    <time>2026-09-29T08:30:00.000Z</time>
+    <name>2026-09-29T08:30:00.000Z</name>
+    <desc>HDG: 75° TWA: 70°  LJ SOG: 10.16 kts TWS:14.2 kt</desc>
+  </wpt>
+  <wpt lat="50.328125" lon="-1.203125">
+    <time>2026-09-29T09:00:00.000Z</time>
+    <name>2026-09-29T09:00:00.000Z</name>
+    <desc>HDG: 69° TWA: 70°  LJ SOG: 10.14 kts TWS:14.1 kt</desc>
+  </wpt>
+  <wpt lat="50.5625" lon="-0.53125">
+    <time>2026-09-29T12:00:00.000Z</time>
+    <name>2026-09-29T12:00:00.000Z</name>
+    <desc>HDG: 57° TWA: 62°  LJ SOG: 9.25 kts TWS:10.9 kt</desc>
+  </wpt>
+  <wpt lat="50.71875" lon="0.09375">
+    <time>2026-09-29T15:00:00.000Z</time>
+    <name>2026-09-29T15:00:00.000Z</name>
+    <desc>HDG: 79° TWA: 65°  LJ SOG: 7.63 kts TWS:7.7 kt</desc>
+  </wpt>
+  <wpt lat="50.8125" lon="0.671875">
+    <time>2026-09-29T18:00:00.000Z</time>
+    <name>2026-09-29T18:00:00.000Z</name>
+    <desc>HDG: 74° TWA: 65°  LJ SOG: 7.72 kts TWS:7.8 kt</desc>
+  </wpt>
+  <wpt lat="51.046875" lon="1.21875">
+    <time>2026-09-29T21:00:00.000Z</time>
+    <name>2026-09-29T21:00:00.000Z</name>
+    <desc>HDG: 51° TWA: 95°  Jib SOG: 8.84 kts TWS:9.0 kt</desc>
+  </wpt>
+  <wpt lat="51.4375" lon="1.734375">
+    <time>2026-09-30T00:00:00.000Z</time>
+    <name>2026-09-30T00:00:00.000Z</name>
+    <desc>HDG: 32° TWA: 120°  Spi SOG: 12.46 kts TWS:15.9 kt</desc>
+  </wpt>
+  <wpt lat="51.953125" lon="2.328125">
+    <time>2026-09-30T03:00:00.000Z</time>
+    <name>2026-09-30T03:00:00.000Z</name>
+    <desc>HDG: 36° TWA: 125°  LG SOG: 12.99 kts TWS:17.1 kt</desc>
+  </wpt>
+  <wpt lat="52.484375" lon="2.84375">
+    <time>2026-09-30T06:00:00.000Z</time>
+    <name>2026-09-30T06:00:00.000Z</name>
+    <desc>HDG: 28° TWA: 135°  LG SOG: 13.05 kts TWS:16.5 kt</desc>
+  </wpt>
+  <wpt lat="52.96875" lon="2.828125">
+    <time>2026-09-30T09:00:00.000Z</time>
+    <name>2026-09-30T09:00:00.000Z</name>
+    <desc>HDG: 326° TWA: -141°  LG SOG: 12.89 kts TWS:17.7 kt</desc>
+  </wpt>
+  <wpt lat="53.5" lon="2.28125">
+    <time>2026-09-30T12:00:00.000Z</time>
+    <name>2026-09-30T12:00:00.000Z</name>
+    <desc>HDG: 325° TWA: -140°  LG SOG: 11.62 kts TWS:14.9 kt</desc>
+  </wpt>
+  <wpt lat="53.984375" lon="1.609375">
+    <time>2026-09-30T15:00:00.000Z</time>
+    <name>2026-09-30T15:00:00.000Z</name>
+    <desc>HDG: 321° TWA: -145°  HG SOG: 13.02 kts TWS:19.0 kt</desc>
+  </wpt>
+  <wpt lat="54.46875" lon="0.953125">
+    <time>2026-09-30T18:00:00.000Z</time>
+    <name>2026-09-30T18:00:00.000Z</name>
+    <desc>HDG: 329° TWA: -140°  LG SOG: 12.79 kts TWS:17.1 kt</desc>
+  </wpt>
+  <wpt lat="55" lon="0.515625">
+    <time>2026-09-30T21:00:00.000Z</time>
+    <name>2026-09-30T21:00:00.000Z</name>
+    <desc>HDG: 343° TWA: -126°  LG SOG: 11.68 kts TWS:13.9 kt</desc>
+  </wpt>
+  <wpt lat="55.5" lon="0.34375">
+    <time>2026-10-01T00:00:00.000Z</time>
+    <name>2026-10-01T00:00:00.000Z</name>
+    <desc>HDG: 354° TWA: -125°  LG SOG: 10.15 kts TWS:11.2 kt</desc>
+  </wpt>
+  <wpt lat="55.953125" lon="0.125">
+    <time>2026-10-01T03:00:00.000Z</time>
+    <name>2026-10-01T03:00:00.000Z</name>
+    <desc>HDG: 336° TWA: -121°  LG SOG: 9.42 kts TWS:9.8 kt</desc>
+  </wpt>
+  <wpt lat="56.34375" lon="-0.1875">
+    <time>2026-10-01T06:00:00.000Z</time>
+    <name>2026-10-01T06:00:00.000Z</name>
+    <desc>HDG: 337° TWA: -120°  LG SOG: 9.03 kts TWS:9.2 kt</desc>
+  </wpt>
+  <wpt lat="56.734375" lon="-0.484375">
+    <time>2026-10-01T09:00:00.000Z</time>
+    <name>2026-10-01T09:00:00.000Z</name>
+    <desc>HDG: 334° TWA: -120°  LG SOG: 9.36 kts TWS:9.7 kt</desc>
+  </wpt>
+  <wpt lat="57.140625" lon="-0.796875">
+    <time>2026-10-01T12:00:00.000Z</time>
+    <name>2026-10-01T12:00:00.000Z</name>
+    <desc>HDG: 335° TWA: -130°  LG SOG: 9.46 kts TWS:10.3 kt</desc>
+  </wpt>
+  <wpt lat="57.578125" lon="-1.171875">
+    <time>2026-10-01T15:00:00.000Z</time>
+    <name>2026-10-01T15:00:00.000Z</name>
+    <desc>HDG: 334° TWA: -142°  LG SOG: 10.32 kts TWS:13.4 kt</desc>
+  </wpt>
+  <wpt lat="58.078125" lon="-1.640625">
+    <time>2026-10-01T18:00:00.000Z</time>
+    <name>2026-10-01T18:00:00.000Z</name>
+    <desc>HDG: 320° TWA: -140°  LG SOG: 12.44 kts TWS:16.2 kt</desc>
+  </wpt>
+  <wpt lat="58.53125" lon="-1.484375">
+    <time>2026-10-01T21:00:00.000Z</time>
+    <name>2026-10-01T21:00:00.000Z</name>
+    <desc>HDG: 37° TWA: 146°  LG SOG: 11.82 kts TWS:16.8 kt</desc>
+  </wpt>
+  <wpt lat="59.015625" lon="-0.796875">
+    <time>2026-10-02T00:00:00.000Z</time>
+    <name>2026-10-02T00:00:00.000Z</name>
+    <desc>HDG: 34° TWA: 146°  HG SOG: 13.20 kts TWS:19.4 kt</desc>
+  </wpt>
+  <wpt lat="59.546875" lon="-0.078125">
+    <time>2026-10-02T03:00:00.000Z</time>
+    <name>2026-10-02T03:00:00.000Z</name>
+    <desc>HDG: 41° TWA: 146°  HG SOG: 13.57 kts TWS:19.8 kt</desc>
+  </wpt>
+  <wpt lat="60.0625" lon="-0.140625">
+    <time>2026-10-02T06:00:00.000Z</time>
+    <name>2026-10-02T06:00:00.000Z</name>
+    <desc>HDG: 335° TWA: -143°  LG SOG: 12.92 kts TWS:18.5 kt</desc>
+  </wpt>
+  <wpt lat="60.640625" lon="-0.640625">
+    <time>2026-10-02T09:00:00.000Z</time>
+    <name>2026-10-02T09:00:00.000Z</name>
+    <desc>HDG: 331° TWA: -142°  LG SOG: 12.03 kts TWS:16.1 kt</desc>
+  </wpt>
+</gpx>

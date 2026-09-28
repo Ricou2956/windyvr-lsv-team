@@ -1,11 +1,13 @@
 import { createSermarClock } from './sermar.js';
 
-const num = value => {
-  if (value == null || value === '') return null;
-  const match = String(value).trim().replace(',', '.').match(/[-+]?\d+(?:\.\d+)?/);
-  const n = match ? Number(match[0]) : NaN;
+export function parseRouteNumber(value) {
+  if (value == null || (typeof value !== 'string' && typeof value !== 'number')) return null;
+  // Match the whole field: malformed exponents and trailing junk must not become coordinates.
+  const match = String(value).trim().replace(',', '.').match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*(?:°|deg|degrees?|kt|kts|kn|knots?|nds?|nœuds?|noeuds?|m\/s|km\/h|nm|hpa|%)?$/i);
+  const n = match ? Number(match[1]) : NaN;
   return Number.isFinite(n) ? n : null;
-};
+}
+const num = parseRouteNumber;
 
 const clean = value => String(value ?? '').replace(/\uFEFF/g, '').trim().replace(/^"|"$/g, '');
 const norm = value => clean(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[ _.-]+/g, '');
@@ -138,7 +140,7 @@ function splitCsvLine(line, delimiter) {
 }
 
 const aliases = {
-  time: ['date', 'time', 'datetime', 'timestamp', 'utc', 'heure', 'DateHeure(UTC)'],
+  time: ['DateHeure(UTC)', 'date', 'time', 'datetime', 'timestamp', 'utc', 'heure'],
   lat: ['latitude', 'lat'],
   lon: ['longitude', 'lon', 'lng', 'long'],
   cog: ['heading', 'cog', 'hdg', 'cap', 'course'],
@@ -162,9 +164,16 @@ export function detectCsvSource({ headers = [], sampleText = '', fileName = '' }
   const sermarCore = ['date', 'lat', 'lon', 'cap_deg', 'twa_deg', 'twd_deg', 'tws_kn', 'vitesse_kn'];
   if (sermarCore.every(has) || (/sermar/i.test(fileName) && ['date', 'lat', 'lon', 'cap_deg', 'twa_deg'].every(has))) return 'SERMAR';
   if (has('SailSet') || (has('Heading') && has('Latitude'))) return 'Avalon';
-  if (has('DateHeure(UTC)') && has('Voile') && has('Speed(kt)')) return 'ZEZO';
+  // The ZEZO GPX extractor reuses VRZen-like headers, but adds BTW/ATWA/ABTW.
+  const utcNavigation = has('DateHeure(UTC)') && has('Voile') && has('Speed(kt)');
+  const zezoExtractor = utcNavigation && ['BTW', 'ATWA', 'ABTW'].every(has);
+  if (zezoExtractor) return 'ZEZO';
+  const vrzenNavigation = ['TTW', 'MODE', 'BestUpVMG', 'BestDwnVMG', 'HDG', 'TWA'].every(has)
+    && (has('DTF(nm)') || has('DTF'));
+  if (vrzenNavigation) return 'VRZen';
+  if (utcNavigation) return 'ZEZO';
   // Les exports VRZen attestés exposent une distance restante (DTF) et des champs vent/navigation.
-  if (has('DTF') && (has('TWA') || has('TWS')) && (has('COG') || has('Heading') || has('HDG'))) return 'VRZen';
+  if ((has('DTF') || has('DTF(nm)')) && (has('TWA') || has('TWS')) && (has('COG') || has('Heading') || has('HDG'))) return 'VRZen';
   if (/\b(?:vrzen|reverse\s*odyssey)\b/i.test(text)) return 'VRZen';
   if (/\b(?:zezo|routemarins)\b/i.test(text)) return 'ZEZO';
   if (/\bavalon\b/i.test(text)) return 'Avalon';
@@ -274,7 +283,7 @@ export function parseCsv(text, { now = new Date(), fileName = '', sermar = {} } 
     idx.mode = getCol(headers, ['mode', 'mode_pilotage']);
   }
   const isAvalon = detectedSource === 'Avalon';
-  const isZezo = detectedSource === 'ZEZO';
+  const isUtcTimeColumn = norm(headers[idx.time]) === norm('DateHeure(UTC)');
 
   let year = null;
   let inferredYear = null;
@@ -286,7 +295,13 @@ export function parseCsv(text, { now = new Date(), fileName = '', sermar = {} } 
     const row = splitCsvLine(line, delimiter);
     let time;
     let elapsedMinutes = null;
-    if (isSermar) {
+    if (isUtcTimeColumn) {
+      const rawTime = clean(row[idx.time]);
+      const explicitUtc = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(rawTime)
+        ? rawTime.replace(' ', 'T') + 'Z' : rawTime;
+      const ms = Date.parse(explicitUtc);
+      time = Number.isNaN(ms) ? null : new Date(ms);
+    } else if (isSermar) {
       ({ time, elapsedMinutes } = sermarClock.parse(clean(row[idx.time]), idx.elapsed >= 0 ? row[idx.elapsed] : null));
     } else if (isAvalon) {
       const rawAvalonTime = clean(row[idx.time]);
@@ -304,10 +319,7 @@ export function parseCsv(text, { now = new Date(), fileName = '', sermar = {} } 
       if (time && year == null) year = time.getFullYear();
     } else {
       const rawTime = clean(row[idx.time]);
-      const explicitUtc = isZezo && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?$/.test(rawTime)
-        ? `${rawTime.replace(' ', 'T')}Z`
-        : rawTime;
-      const ms = Date.parse(explicitUtc);
+      const ms = Date.parse(rawTime);
       time = Number.isNaN(ms) ? parseAvalonDate(row[idx.time], year, now) : new Date(ms);
     }
     if (!time) continue;
@@ -345,7 +357,7 @@ function directText(el, selector) {
 
 function extractLabeledNumber(text, labels) {
   const labelPattern = labels.map(label => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-  const match = String(text || '').match(new RegExp(`\\b(?:${labelPattern})\\s*[:=]\\s*([-+]?\\d+(?:[.,]\\d+)?)`, 'i'));
+  const match = String(text || '').match(new RegExp(`\\b(?:${labelPattern})\\s*[:=]\\s*([^\\s°]+)`, 'i'));
   return match ? num(match[1]) : null;
 }
 
