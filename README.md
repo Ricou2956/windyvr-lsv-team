@@ -1,6 +1,15 @@
-# WindyVR LSV Team 1.2.0-rc.1
+# WindyVR LSV Team 1.2.0
 
 Plugin Windy destiné à l'analyse météo de routes issues de routeurs Virtual Regatta. Il ne calcule pas une nouvelle route : il compare les routes importées et mesure leur exposition aux modèles ECMWF, GFS et ICON.
+
+## État de la version et documentation
+
+Version finale 1.2.0 préparée sur dev-v1.2.0 ; **publication Windy non encore effectuée**. Les validations des lots Honolulu–Yokohama et Round Britain Record sont consignées dans [le suivi](SERMAR_VALIDATION.md). Dorado reste explicitement non retesté en conditions réelles, son service étant indisponible selon Eric.
+
+- [Guide utilisateur V1.2.0](docs/WindyVR_1.2.0_Guide_utilisateur.pdf) — version corrigée validée par Eric.
+- [Guide technique V1.2.0](docs/WindyVR_1.2.0_Guide_technique.pdf).
+
+Les PDF fournis sont conservés sans modification. Leur présence dans le dépôt ne signifie pas que la version 1.2.0 est déjà disponible dans la bibliothèque Windy.
 
 ## Fonctionnalités
 
@@ -16,7 +25,9 @@ Plugin Windy destiné à l'analyse météo de routes issues de routeurs Virtual 
 - Segments colorés sur la carte, contrôle qualité, comparaison des ETA et rapport PDF.
 - Heures dans le fuseau local du navigateur, avec passage été/hiver automatique. Les cycles météo restent exprimés en Z.
 
-## Installation depuis Windy
+## Installation depuis Windy — après publication
+
+La procédure ci-dessous sera applicable après publication et disponibilité dans la bibliothèque Windy. En attendant, utiliser le chargement local décrit dans « Développement local ».
 
 1. Ouvrir [Windy.com](https://www.windy.com/) et se connecter.
 2. Ouvrir le menu puis **Installer des plugins Windy**.
@@ -74,6 +85,8 @@ npm run build
 
 ## Publication d'une mise à jour
 
+Étape ultérieure, sur autorisation explicite : suivre [PUBLISHING.md](PUBLISHING.md). La préparation actuelle sur dev-v1.2.0 ne fusionne pas vers main et ne publie rien.
+
 1. Incrémenter la même version dans `package.json` et `src/pluginConfig.ts`.
 2. Envoyer les fichiers modifiés sur la branche `main`.
 3. Vérifier que le secret GitHub Actions `WINDY_API_KEY` est configuré.
@@ -93,13 +106,13 @@ L'identifiant `windy-plugin-windyvr-lsv-team` et le chemin `/windyvr-lsv-team` d
 MIT
 
 
-## Version 1.2.0-rc.1
+## Version 1.2.0
 
-Cette release candidate regroupe la campagne de fiabilisation issue de l'audit 1.1.0 : normalisation des imports et unités, contrôle qualité temporel, adaptation de la réponse météo, fenêtre réellement analysée, score de concordance robuste, ETA comparables uniquement entre mêmes arrivées, analyse incrémentale, cycle de vie Windy, accessibilité, diagnostic local et rapport PDF enrichi.
+Cette version regroupe la campagne de fiabilisation issue de l'audit 1.1.0 : normalisation des imports et unités, contrôle qualité temporel, adaptation de la réponse météo, fenêtre réellement analysée, score de concordance robuste, ETA comparables uniquement entre mêmes arrivées, analyse incrémentale, cycle de vie Windy, accessibilité, diagnostic local et rapport PDF enrichi.
 
 Le diagnostic JSON reste local au navigateur : il n'est pas transmis automatiquement et n'inclut ni noms de fichiers ni coordonnées.
 
-## Intégration SERMAR dans la RC1
+## Intégration SERMAR
 
 Les CSV SERMAR sont reconnus par leurs colonnes de navigation en degrés et nœuds ; le nom du fichier sert d'indice complémentaire. Les GPX sont reconnus par leur créateur Route SERMAR ou leur nom SERMAR. La source est également disponible dans le sélecteur manuel. ECMWF et GFS-V sont identifiés dans les noms ; aucune heure d'export SERMAR n'est présentée comme un cycle météo.
 
@@ -107,4 +120,4 @@ Les dates CSV JJ/MM HH:mm supposent l'année la plus proche de l'import et le fu
 
 Les angles, vitesses et voiles du CSV restent ceux de l'export. Le TWA source SERMAR est distingué du TWA météo calculé ; les décimales sont conservées, sans correction automatique des écarts. Sur le lot du 27 septembre, TWA positif correspond à B et négatif à T, avec un signe opposé à TWD − CAP. Aucune consigne CAP/TWA n'est déduite des valeurs entières. Les positions intermédiaires sont interpolées et signalées comme telles.
 
-Notes préparatoires V1.2.0 : ajout SERMAR, dates sans année fiabilisées, conservation des valeurs sources et contrôles de temps écoulé. La version reste 1.2.0-rc.1 jusqu'aux essais Windy. Voir [le compte rendu SERMAR](SERMAR_VALIDATION.md) et [la procédure de publication](PUBLISHING.md).
+Notes préparatoires V1.2.0 : ajout SERMAR, dates sans année fiabilisées, conservation des valeurs sources et contrôles de temps écoulé. Les essais Windy des lots de référence sont validés ; la version 1.2.0 est préparée, sans publication à cette étape. Voir [le compte rendu SERMAR](SERMAR_VALIDATION.md) et [la procédure de publication](PUBLISHING.md).

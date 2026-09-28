@@ -1,4 +1,17 @@
-# WindyVR LSV Team 1.2.0-rc.1 — validation avant publication
+# WindyVR LSV Team 1.2.0 — préparation avant publication
+
+## Préparation de la version finale 1.2.0 — 28 septembre 2026
+
+Sur demande explicite d'Eric, passage de 1.2.0-rc.1 à 1.2.0 sur dev-v1.2.0, depuis b6e79d9. Versions synchronisées dans package.json, package-lock.json (racine et paquet racine) et src/pluginConfig.ts. Les deux guides PDF fournis sont ajoutés dans docs/ sans modification et référencés dans le README ; le guide utilisateur corrigé est validé par Eric.
+
+Revue des points ouverts : validations Honolulu–Yokohama et RBR consignées, y compris imports, analyse météo, géométrie/risques, ETA non comparables, couverture, diagnostic/PDF, clavier, fermeture/réouverture et état hors plage. La présentation ETA a été corrigée et contrôlée dans Edge. Aucun défaut fonctionnel restant signalé dans le suivi sur ces lots.
+
+Réserve maintenue : Dorado non retesté en conditions réelles, service indisponible selon Eric. La présente demande autorise la préparation finale en conservant explicitement cette réserve ; elle ne transforme pas cet essai en validation et n'autorise pas la publication.
+
+Identifiant windy-plugin-windyvr-lsv-team, routerPath /windyvr-lsv-team, scripts multi-PC et garde-fous de publication inchangés. La publication demeure manuelle et réservée à main. À cette étape : commit/push uniquement sur dev-v1.2.0 ; aucune fusion main, aucun tag final, aucun déclenchement de publication. Installation publique V1.2.0 non annoncée comme disponible.
+
+Les sections RC ci-dessous constituent l'historique des validations et des décisions précédentes. Le présent état 1.2.0 prévaut sur leurs mentions de version conservée en RC1.
+
 
 ## Validation réelle RBR acceptée — 28 septembre 2026
 
@@ -100,3 +113,5 @@ Procédure historique, désormais validée sur le lot RBR : charger https://loca
 Validation locale finale du correctif RBR : npm test réussi, y compris SERMAR et antiméridien ; tests RBR réussis sous Europe/Paris, UTC et America/New_York ; DOMParser natif Edge réussi sur les fichiers réels ; npm run build:win réussi. Les cinq fixtures sont identiques aux exports originaux (SHA-256). Le serveur existant répond en HTTPS 200 et sert bien parseRouteNumber, la nouvelle signature VRZen et la règle UTC indépendante ; manifeste 1.2.0-rc.1. git diff --check sans erreur. État historique avant la demande de commit/push : modifications locales sur dev-v1.2.0, HEAD 76cfe91. Validation visuelle Windy du lot RBR corrigé reçue d’Eric et du coordinateur Cloud.
 
 Verification de presentation : controle Edge du titre et de son explication sur deux lignes, espacement minimal de 4 px confirme ; build Windows reussi. Les tests complets du correctif RBR avaient deja reussi et la validation reelle est recue ; ils ne sont pas rejoues pour cette seule modification CSS.
+
+Validation de preparation finale : npm test et npm run build:win reussis en 1.2.0. Versions package.json, package-lock.json (racine et paquet racine), src/pluginConfig.ts et manifeste dist/plugin.json concordantes. Identifiant et routerPath verifies ; scripts multi-PC et workflow de publication identiques au commit b6e79d9. Deux PDF copies a l'identique (SHA-256). Aucun blocage technique constate pour le commit/push demande ; reserve Dorado maintenue. Publication non effectuee.
