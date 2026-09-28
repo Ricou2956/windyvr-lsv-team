@@ -1,4 +1,18 @@
-# WindyVR LSV Team 1.2.0 — préparation avant publication
+# WindyVR LSV Team 1.2.0 — suivi de publication
+
+## Publication technique 1.2.0 — 28 septembre 2026
+
+Publication explicitement autorisée par Eric depuis la référence validée 383736eb11ae9d70d9bea6cc71b4dc186321f2a2. Fusion de dev-v1.2.0 vers main par avance rapide, sans conflit. Tests npm test et build Windows npm run build:win réussis sur ce résultat ; versions finales 1.2.0 concordantes. Identifiant, routerPath, scripts multi-PC et garde-fous inchangés. Réserve connue maintenue : Dorado non retesté, service indisponible selon Eric.
+
+- Code publié : 383736eb11ae9d70d9bea6cc71b4dc186321f2a2, poussé sur main.
+- Tag annoté v1.2.0 créé et poussé sur ce commit, sans écrasement de tag.
+- [Workflow manuel publish-plugin](https://github.com/Ricou2956/windyvr-lsv-team/actions/runs/36416661225) lancé depuis main : terminé avec succès ; build Linux, contrôle de version finale et envoi Windy réussis.
+- Réponse Windy : installUrl [plugin 1.2.0](https://windy-plugins.com/3653906/windy-plugin-windyvr-lsv-team/1.2.0/plugin.min.js). Fichier vérifié accessible en HTTPS (200, 116811 octets), identifiant et version 1.2.0 présents.
+- **Publication technique réussie.**
+- **Demande de validation Windy non envoyée pendant cette mission.** Eric doit transmettre cette URL à Windy pour revue ou confirmation de la mise à jour, selon la [procédure officielle](https://docs.windy-plugins.com/getting-started/updating-plugin.html).
+- **Disponibilité publique dans la bibliothèque Windy non confirmée.** Un fichier hébergé accessible ne prouve pas son approbation ou sa présence dans la bibliothèque.
+
+Ce compte rendu est un ajout documentaire postérieur à la publication ; le tag reste attaché au code effectivement envoyé. Cet état prévaut sur les restrictions et mentions de non-publication des étapes historiques ci-dessous.
 
 ## Préparation de la version finale 1.2.0 — 28 septembre 2026
 

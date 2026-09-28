@@ -4,7 +4,7 @@ Plugin Windy destiné à l'analyse météo de routes issues de routeurs Virtual 
 
 ## État de la version et documentation
 
-Version finale 1.2.0 préparée sur dev-v1.2.0 ; **publication Windy non encore effectuée**. Les validations des lots Honolulu–Yokohama et Round Britain Record sont consignées dans [le suivi](SERMAR_VALIDATION.md). Dorado reste explicitement non retesté en conditions réelles, son service étant indisponible selon Eric.
+Version finale 1.2.0 : **publication technique réussie** depuis main, tag v1.2.0 ([workflow](https://github.com/Ricou2956/windyvr-lsv-team/actions/runs/36416661225)). Demande de validation Windy non envoyée pendant cette mission ; disponibilité dans la bibliothèque publique non confirmée. Voir [le suivi de publication](PUBLISHING.md). Les validations des lots Honolulu–Yokohama et Round Britain Record sont consignées dans [le suivi](SERMAR_VALIDATION.md). Dorado reste explicitement non retesté en conditions réelles, son service étant indisponible selon Eric.
 
 - [Guide utilisateur V1.2.0](docs/WindyVR_1.2.0_Guide_utilisateur.pdf) — version corrigée validée par Eric.
 - [Guide technique V1.2.0](docs/WindyVR_1.2.0_Guide_technique.pdf).
@@ -25,9 +25,9 @@ Les PDF fournis sont conservés sans modification. Leur présence dans le dépô
 - Segments colorés sur la carte, contrôle qualité, comparaison des ETA et rapport PDF.
 - Heures dans le fuseau local du navigateur, avec passage été/hiver automatique. Les cycles météo restent exprimés en Z.
 
-## Installation depuis Windy — après publication
+## Installation depuis Windy — après confirmation dans la bibliothèque
 
-La procédure ci-dessous sera applicable après publication et disponibilité dans la bibliothèque Windy. En attendant, utiliser le chargement local décrit dans « Développement local ».
+La procédure ci-dessous sera applicable après confirmation de disponibilité dans la bibliothèque Windy. En attendant, utiliser le chargement local décrit dans « Développement local ».
 
 1. Ouvrir [Windy.com](https://www.windy.com/) et se connecter.
 2. Ouvrir le menu puis **Installer des plugins Windy**.
@@ -85,7 +85,7 @@ npm run build
 
 ## Publication d'une mise à jour
 
-Étape ultérieure, sur autorisation explicite : suivre [PUBLISHING.md](PUBLISHING.md). La préparation actuelle sur dev-v1.2.0 ne fusionne pas vers main et ne publie rien.
+Pour les prochaines mises à jour, sur autorisation explicite : suivre [PUBLISHING.md](PUBLISHING.md). La publication reste manuelle depuis main.
 
 1. Incrémenter la même version dans `package.json` et `src/pluginConfig.ts`.
 2. Envoyer les fichiers modifiés sur la branche `main`.
