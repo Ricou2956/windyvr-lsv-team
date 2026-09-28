@@ -216,6 +216,12 @@ function routeDiagnostics(route, routeIndex) {
     discardedInvalidPositions: Number.isFinite(route?.qualityMeta?.discardedInvalidPositions) ? route.qualityMeta.discardedInvalidPositions : 0,
     dateInterpretation: route?.qualityMeta?.dateInterpretation || null,
     inferredYear: Number.isFinite(route?.qualityMeta?.inferredYear) ? route.qualityMeta.inferredYear : null,
+    ...(route?.qualityMeta?.windConvention ? {
+      windConvention: route.qualityMeta.windConvention,
+      yearAssumption: route.qualityMeta.yearAssumption,
+      elapsedChecked: route.qualityMeta.elapsedChecked,
+      elapsedMismatches: route.qualityMeta.elapsedMismatches,
+    } : {}),
     fieldCoveragePercent: fieldCoverage,
   };
 }

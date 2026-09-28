@@ -1,0 +1,71 @@
+<!doctype html><meta charset="utf-8"><pre id="result">RUNNING</pre><script type="module">
+import { parseGpx, parseCsv, parseRouteFile, signedAngle } from '/src/routeParser.js';
+import { unwrapMapGeometry, mapPositionOnRoute } from '/src/mapGeometry.js';
+import { routeGeometryBetween } from '/src/analysisUtils.js';
+import { interpolateRoute } from '/src/timeUtils.js';
+const results=[];
+const combinedGeometry=[];
+function checkRendering(route) {
+ const before=JSON.stringify(route.points);
+ const geometry=unwrapMapGeometry(route.points.map(p=>[p.lat,p.lon]),-158);
+ combinedGeometry.push(...geometry);
+ let rawJumps=0,maxStep=0;
+ for(let i=1;i<geometry.length;i++) {
+  if(Math.abs(route.points[i].lon-route.points[i-1].lon)>180)rawJumps++;
+  maxStep=Math.max(maxStep,Math.abs(geometry[i][1]-geometry[i-1][1]));
+  const start=+route.points[i-1].time,end=+route.points[i].time;
+  const position=interpolateRoute(route.points,(start+end)/2);
+  const marker=mapPositionOnRoute(route.points,geometry,position);
+  check(Math.abs(marker[1]-(geometry[i-1][1]+geometry[i][1])/2)<1e-8,'rendered marker alignment');
+  const risk=unwrapMapGeometry(routeGeometryBetween(route.points,start,end),geometry[i-1][1]);
+  check(Math.abs(risk[0][1]-geometry[i-1][1])<1e-8 && Math.abs(risk.at(-1)[1]-geometry[i][1])<1e-8,'risk layer alignment');
+ }
+ check(rawJumps>0 && maxStep<1,'real antimeridian crossing repaired');
+ check(before===JSON.stringify(route.points),'source unchanged');
+ results.push(route.source+' rendering: '+rawJumps+' source jump(s), max displayed step '+maxStep.toFixed(5)+' deg');
+}
+const check = (ok,label) => { if(!ok) throw Error(label); };
+try {
+ const synthetic = creator => '<gpx creator="'+creator+'"><rte><name>SERMAR_test</name><rtept lat="21" lon="-158"><time>2026-09-29T10:00:00Z</time><extensions><cap_deg>260</cap_deg><twa_deg>-115.043</twa_deg><twd_deg>15.127</twd_deg><vitesse_kn>9.349</vitesse_kn><tws_kn>4.987</tws_kn></extensions></rtept><rtept lat="21.1" lon="-159"><time>2026-09-29T10:10:00Z</time></rtept></rte></gpx>';
+ for(const creator of ['Route SERMAR','unknown']) {
+  const p=parseGpx(synthetic(creator)); check(p.source==='SERMAR','GPX identity');
+  check(p.points[0].twa===-115.043 && p.points[0].sog===9.349,'GPX source values and knots');
+  check(p.points[0].time.toISOString()==='2026-09-29T10:00:00.000Z','explicit GPX date');
+ }
+ const named=await parseRouteFile({name:'SERMAR_GFS-V.gpx',text:async()=>synthetic('unknown').replace('SERMAR_test','test')});
+ check(named.source==='SERMAR' && named.nativeModel==='gfs','GPX filename fallback');
+ results.push('Native DOMParser GPX tests: OK');
+ if(new URL(location.href).searchParams.has('fixtures')) {
+  for(const [csvName,gpxName,count,end] of [
+   ['SERMAR_GFS-V_2709_2102.csv','SERMAR_GFS-V_2709_2102.gpx',1058,'2026-10-06T18:08:00.000Z'],
+   ['AVALON 2709_2120 route-29_09_12_00.csv','AVALON_2709_21h20 gpx-avalon.gpx',1061,'2026-10-06T17:25:00.000Z']]) {
+   const [ct,gt]=await Promise.all([csvName,gpxName].map(async n=>{const r=await fetch('/fixtures/'+encodeURIComponent(n));if(!r.ok) throw Error(n);return r.text();}));
+   const c=parseCsv(ct,{now:new Date('2026-09-28T10:00:00Z'),fileName:csvName,sermar:{year:2026,utcOffsetMinutes:120}}),g=parseGpx(gt,{fileName:gpxName});
+   check(c.points.length===count && g.points.length===count,'point count');
+   checkRendering(c); checkRendering(g);
+   check(c.points[0].time.toISOString()==='2026-09-29T10:00:00.000Z','start UTC (browser Europe/Paris for Avalon)');
+   check(c.points.at(-1).time.toISOString()===end,'end UTC');
+   check(c.qualityMeta.duplicateTimestamps===0 && c.qualityMeta.reversedTimestamps===0,'CSV time order');
+   check(g.qualityMeta.duplicateTimestamps===0 && g.qualityMeta.reversedTimestamps===0,'GPX time order');
+   for(let i=0;i<count;i++) {
+    const a=c.points[i],b=g.points[i];check(+a.time===+b.time,'paired timestamp '+i);
+    check(Math.abs(a.lat-b.lat)<0.000001 && Math.abs(a.lon-b.lon)<0.000001,'paired coordinates '+i);
+   }
+   if(c.source==='SERMAR') {
+    check(c.qualityMeta.elapsedChecked===1057 && c.qualityMeta.elapsedMismatches===0,'elapsed validation');
+    const defaultRoute=parseCsv(ct,{now:new Date('2026-09-28T10:00:00Z')});
+    check(defaultRoute.points.every((p,i)=>+p.time===+c.points[i].time),'browser local dates (Europe/Paris)');
+    const rows=ct.trim().split(/\r?\n/).slice(1).map(r=>r.split(';'));
+    let opposed=0;
+    rows.forEach(r=>check((+r[6]>0 && r[7]==='B') || (+r[6]<0 && r[7]==='T'),'SERMAR tack sign'));
+    check(c.points[973].cog===260 && c.points[973].twa===-115.043,'reference line 975');
+    rows.forEach((r,i)=>{for(const [key,col] of [['cog',5],['twa',6],['twd',8],['tws',9],['sog',10]]) check(c.points[i][key]===Number(r[col]),'source preservation '+i+' '+key); if(Math.sign(c.points[i].twa)===-Math.sign(signedAngle(c.points[i].twd,c.points[i].cog))) opposed++;});
+    results.push('SERMAR opposite TWA sign: '+opposed+'/'+count+' points; original values preserved');
+   }
+   results.push(c.source+': '+count+' matching CSV/GPX points; '+end);
+  }
+ }
+ if(combinedGeometry.length) { const lons=combinedGeometry.map(p=>p[1]); check(Math.max(...lons)-Math.min(...lons)<90,'four route framing across Pacific'); }
+ document.querySelector('#result').textContent='PASS\n'+results.join('\n');
+} catch(e) { document.querySelector('#result').textContent='FAIL '+e.stack; }
+</script>

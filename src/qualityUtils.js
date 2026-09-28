@@ -25,6 +25,9 @@ export function assessRouteQuality(route) {
   if (duplicates) issues.push(`${duplicates} doublon(s) d’horodatage fusionné(s)`);
   if (reversed) issues.push(`${reversed} date(s) inversée(s) dans le fichier source`);
 
+  if (meta.windConvention) issues.push(meta.windConvention);
+  if (meta.yearAssumption) issues.push('Dates : ' + meta.inferredYear + ' (' + meta.yearAssumption + '), ' + meta.dateInterpretation);
+  if (meta.elapsedMismatches) issues.push(meta.elapsedMismatches + ' écart(s) entre dates et temps écoulé');
   const sorted = [...gaps].sort((a, b) => a - b);
   const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
   const largeGaps = gaps.filter(g => g > Math.max(6 * 3600000, median * 3)).length;
@@ -45,6 +48,6 @@ export function assessRouteQuality(route) {
   if (missingWind > 0.5) issues.push('Vent natif absent sur plus de 50 % de la route');
 
   const hasRedIssue = reversed > 0 || invalidPosition > 0 || suspiciousSpeed > 0;
-  const hasOrangeIssue = largeGaps > 0 || missingSog > 0.5 || missingWind > 0.5;
+  const hasOrangeIssue = meta.elapsedMismatches > 0 || largeGaps > 0 || missingSog > 0.5 || missingWind > 0.5;
   return { level: hasRedIssue ? 'red' : hasOrangeIssue ? 'orange' : 'green', issues };
 }

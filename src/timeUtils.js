@@ -1,3 +1,5 @@
+import { signedAngle } from './routeParser.js';
+
 function circularLerp(a, b, t) {
   if (!Number.isFinite(a) || !Number.isFinite(b)) return Number.isFinite(a) ? a : b;
   let d = ((b - a + 540) % 360) - 180;
@@ -32,9 +34,11 @@ export function interpolateRoute(points, timestamp) {
     if (points[mid].time.getTime() <= ts) lo = mid; else hi = mid;
   }
   const a = points[lo], b = points[hi];
+  if (ts === a.time.getTime() && a.windConvention === 'sermar') return { ...a, exact: true, outOfRange: false };
   const dt = b.time.getTime() - a.time.getTime();
   const f = dt ? (ts - a.time.getTime()) / dt : 0;
   return {
+    ...(a.windConvention === 'sermar' ? { windConvention: 'sermar', weatherTwa: signedAngle(circularLerp(a.twd, b.twd, f), circularLerp(a.cog, b.cog, f)), steeringMode: a.steeringMode } : {}),
     time: new Date(ts),
     lat: linear(a.lat, b.lat, f), lon: lonLerp(a.lon, b.lon, f),
     cog: circularLerp(a.cog, b.cog, f), sog: linear(a.sog, b.sog, f),

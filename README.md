@@ -5,7 +5,7 @@ Plugin Windy destiné à l'analyse météo de routes issues de routeurs Virtual 
 ## Fonctionnalités
 
 - Import de 6 routes au maximum, dont 4 affichées simultanément sur la carte.
-- Formats GPX et CSV issus de Dorado, Avalon, VRZen, eSail4VR, ZEZO et formats proches.
+- Formats GPX et CSV issus de Dorado, Avalon, VRZen, eSail4VR, ZEZO, SERMAR et formats proches.
 - Identification structurelle d'eSail4VR, indépendante du nom du skipper.
 - Reconnaissance des exports Dorado ECMWF et GFS ainsi que de leur cycle météo.
 - Position interpolée de chaque bateau au temps sélectionné dans le curseur Windy.
@@ -98,3 +98,13 @@ MIT
 Cette release candidate regroupe la campagne de fiabilisation issue de l'audit 1.1.0 : normalisation des imports et unités, contrôle qualité temporel, adaptation de la réponse météo, fenêtre réellement analysée, score de concordance robuste, ETA comparables uniquement entre mêmes arrivées, analyse incrémentale, cycle de vie Windy, accessibilité, diagnostic local et rapport PDF enrichi.
 
 Le diagnostic JSON reste local au navigateur : il n'est pas transmis automatiquement et n'inclut ni noms de fichiers ni coordonnées.
+
+## Intégration SERMAR dans la RC1
+
+Les CSV SERMAR sont reconnus par leurs colonnes de navigation en degrés et nœuds ; le nom du fichier sert d'indice complémentaire. Les GPX sont reconnus par leur créateur Route SERMAR ou leur nom SERMAR. La source est également disponible dans le sélecteur manuel. ECMWF et GFS-V sont identifiés dans les noms ; aucune heure d'export SERMAR n'est présentée comme un cycle météo.
+
+Les dates CSV JJ/MM HH:mm supposent l'année la plus proche de l'import et le fuseau local du navigateur, avec ses règles été/hiver. Ces hypothèses sont annoncées à l'import et reprises dans le contrôle qualité, le PDF et le diagnostic. Pour une archive ou un fichier exporté dans un autre fuseau, vérifier les horaires avec le GPX, qui conserve ses dates explicites. Le changement décembre–janvier incrémente l'année ; temps_ecoule contrôle les intervalles sans fixer le départ.
+
+Les angles, vitesses et voiles du CSV restent ceux de l'export. Le TWA source SERMAR est distingué du TWA météo calculé ; les décimales sont conservées, sans correction automatique des écarts. Sur le lot du 27 septembre, TWA positif correspond à B et négatif à T, avec un signe opposé à TWD − CAP. Aucune consigne CAP/TWA n'est déduite des valeurs entières. Les positions intermédiaires sont interpolées et signalées comme telles.
+
+Notes préparatoires V1.2.0 : ajout SERMAR, dates sans année fiabilisées, conservation des valeurs sources et contrôles de temps écoulé. La version reste 1.2.0-rc.1 jusqu'aux essais Windy. Voir [le compte rendu SERMAR](SERMAR_VALIDATION.md) et [la procédure de publication](PUBLISHING.md).

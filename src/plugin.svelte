@@ -14,7 +14,7 @@
   {#if message}<div class="message">{message}</div>{/if}
 
   {#if routes.length === 0}
-    <p class="empty">Ajoutez jusqu’à six routes Dorado / Avalon / VRZen / eSail4VR / ZEZO. Quatre routes peuvent être visibles simultanément.</p>
+    <p class="empty">Ajoutez jusqu’à six routes Dorado / Avalon / VRZen / eSail4VR / ZEZO / SERMAR. Quatre routes peuvent être visibles simultanément.</p>
   {:else}
     <div class="routes">
       {#each routes as route (route.id)}
@@ -65,7 +65,7 @@
   <div class="analysis-overlay">
     <div class="analysis-window" bind:this={analysisDialog} role="dialog" aria-modal="true" aria-labelledby="analysis-dialog-title" tabindex="-1">
       <header class="analysis-head">
-        <div><strong id="analysis-dialog-title">Analyse météo complète</strong><small>Ocean Race Atlantique · routes importées · valeurs natives et météo Windy à l’instant T</small></div>
+        <div><strong id="analysis-dialog-title">Analyse météo complète</strong><small>Routes importées · valeurs natives et météo Windy à l’instant T</small></div>
         <button data-dialog-close aria-label="Fermer l’analyse" on:click={closeAnalysis}>×</button>
       </header>
 
@@ -190,6 +190,7 @@
   import config from './pluginConfig.ts';
   import { formatLocalDateTime } from './dateTime.js';
   import { buildRiskEvents, buildSampleTimes, pendingAnalysisRouteIds, retainAnalysisForRoutes, routeGeometryBetween, selectCriticalEvents, summarizeArrivalComparability, summarizeCoverageWindow, summarizeRiskProfile, summarizeRouteDistanceWindow, summarizeWeatherSamples } from './analysisUtils.js';
+  import { longitudeNear, mapPositionOnRoute, unwrapMapGeometry } from './mapGeometry.js';
   import { assessRouteQuality } from './qualityUtils.js';
   import {
     buildDiagnosticsReport, finishAnalysisDiagnostics, recordWeatherCacheHit, recordWeatherCacheMiss,
@@ -209,6 +210,7 @@
   const MODELS = [{ id: 'ecmwf', label: 'ECMWF' }, { id: 'gfs', label: 'GFS' }, { id: 'icon', label: 'ICON' }];
   const weatherSeriesCache = new Map();
   let routes = [];
+  let mapLongitudeReference = null;
   let currentTimestamp = store.get('timestamp');
   let message = '';
   let analysisOpen = false;
@@ -309,7 +311,7 @@
     const fmt = (v, suffix = "") => {
       if (v === null || v === undefined || v === "") return "-";
       const n = Number(v);
-      return Number.isFinite(n) ? `${Math.round(n * 10) / 10}${suffix}` : "-";
+      return Number.isFinite(n) ? `${p.windConvention === 'sermar' ? (p.exact ? n : Math.round(n * 1000) / 1000) : Math.round(n * 10) / 10}${suffix}` : "-";
     };
 
     const cog = fmt(p.cog, "°");
@@ -319,7 +321,7 @@
     const tws = fmt(p.tws, " kt");
     const twd = fmt(p.twd, "°");
 
-    return `COG ${cog}  ·  SOG ${sog}  ·  Voile ${sail}\nTWA ${twa}  ·  TWS ${tws}  ·  TWD ${twd}`;
+    return `COG ${cog}  ·  SOG ${sog}  ·  Voile ${sail}\nTWA${p.windConvention === 'sermar' ? (p.exact ? ' source SERMAR' : ' interpolé SERMAR') : ''} ${twa}  ·  TWS ${tws}  ·  TWD ${twd}`;
   }
 
   function modelSummary(w) {
@@ -440,7 +442,7 @@
     store.set('timestamp', event.timestamp);
     const route = routes.find(r => r.id === event.routeId);
     const position = route ? interpolateRoute(route.points, event.timestamp) : null;
-    if (position) map.panTo([position.lat, position.lon]);
+    if (position) map.panTo(routeMapPosition(route, position));
     closeVisual();
   }
 
@@ -542,12 +544,44 @@
     return end > start ? `${formatLocalDateTime(start)} → ${formatLocalDateTime(end)}` : 'aucune';
   }
 
+  function routeMapGeometry(route) {
+    if (!route.mapGeometry) {
+      const firstGeometry = mapLongitudeReference == null;
+      route.mapGeometry = unwrapMapGeometry(route.points.map(p => [p.lat, p.lon]), mapLongitudeReference ?? route.points[0].lon);
+      if (firstGeometry) {
+        const longitudes = route.mapGeometry.map(p => p[1]);
+        mapLongitudeReference = (Math.min(...longitudes) + Math.max(...longitudes)) / 2;
+      }
+    }
+    // Windy can wrap its centre after fitBounds or a pan. Follow that world copy.
+    const offset = longitudeNear(mapLongitudeReference, map.getCenter().lng) - mapLongitudeReference;
+    return route.mapGeometry.map(([lat, lon]) => [lat, lon + offset]);
+  }
+
+  function routeMapPosition(route, position) {
+    return mapPositionOnRoute(route.points, routeMapGeometry(route), position);
+  }
+
+  function refreshMapWorld() {
+    for (const route of routes) {
+      if (!route.visible) continue;
+      route.polyline?.setLatLngs(routeMapGeometry(route));
+      if (route.marker && route.position) route.marker.setLatLng(routeMapPosition(route, route.position));
+      const analysis = routeAnalysis.find(item => item.routeId === route.id);
+      if (analysis) createRiskLayers(route, analysis.riskEvents);
+    }
+  }
+
+  function fitRouteBounds() {
+    map.fitBounds(routes.flatMap(routeMapGeometry), { padding: [30, 30] });
+  }
+
   function createMapObjects(route) {
-    const latLngs = route.points.map(p => [p.lat, p.lon]);
+    const latLngs = routeMapGeometry(route);
     const style = routeStyleForIndex(route.styleIndex ?? 0);
     route.polyline = new L.Polyline(latLngs, { color: route.color, weight: 3, opacity: 0.86, dashArray: route.dashArray ?? style.dashArray }).addTo(map);
     const p = route.position || route.points[0];
-    route.marker = new L.Marker([p.lat, p.lon], { icon: boatIcon(route.color, p.cog), zIndexOffset: 500 }).addTo(map);
+    route.marker = new L.Marker(routeMapPosition(route, p), { icon: boatIcon(route.color, p.cog), zIndexOffset: 500 }).addTo(map);
     route.marker.setOpacity(markerOpacityForPosition(p));
     const analysis = routeAnalysis.find(item => item.routeId === route.id);
     if (analysis) createRiskLayers(route, analysis.riskEvents);
@@ -566,7 +600,9 @@
     for (let i = 0; i < events.length - 1; i += 1) {
       const geometry = routeGeometryBetween(route.points, events[i].timestamp, events[i + 1].timestamp);
       if (geometry.length < 2) continue;
-      route.riskLayers.push(new L.Polyline(geometry, { color: colors[events[i].level], weight: 6, opacity: .9 }).addTo(map));
+      const startPosition = interpolateRoute(route.points, events[i].timestamp);
+      const displayGeometry = unwrapMapGeometry(geometry, routeMapPosition(route, startPosition)[1]);
+      route.riskLayers.push(new L.Polyline(displayGeometry, { color: colors[events[i].level], weight: 6, opacity: .9 }).addTo(map));
     }
   }
 
@@ -587,7 +623,7 @@
     for (const route of routes) {
       route.position = interpolateRoute(route.points, ts);
       if (route.marker && route.position) {
-        route.marker.setLatLng([route.position.lat, route.position.lon]);
+        route.marker.setLatLng(routeMapPosition(route, route.position));
         route.marker.setIcon(boatIcon(route.color, route.position.cog));
         route.marker.setOpacity(markerOpacityForPosition(route.position));
       }
@@ -776,6 +812,7 @@
     for (const file of files) {
       try {
         const parsed = await parseRouteFile(file);
+        if (!routes.length) mapLongitudeReference = null;
         const styleIndex = nextRouteStyleIndex(routes);
         const routeStyle = routeStyleForIndex(styleIndex);
         const route = {
@@ -790,6 +827,9 @@
         if (route.visible) createMapObjects(route);
         routes = [...routes, route];
         if (routeAnalysis.length) markAnalysisPartial();
+        if (parsed.source === 'SERMAR' && parsed.qualityMeta?.dateInterpretation) warnings.push(
+          file.name + ' : dates JJ/MM, année de départ ' + parsed.qualityMeta.inferredYear + ' (' + parsed.qualityMeta.yearAssumption + '), ' + parsed.qualityMeta.dateInterpretation + '. Vérifier avec le GPX si nécessaire.');
+        if (parsed.qualityMeta?.elapsedMismatches) warnings.push(file.name + ' : temps écoulé incohérent avec les dates.');
         const discardedInvalidPositions = Number(parsed.qualityMeta?.discardedInvalidPositions || 0);
         if (discardedInvalidPositions > 0) warnings.push(`${file.name}: ${discardedInvalidPositions} position(s) invalide(s) écartée(s) à l’import.`);
       } catch (error) {
@@ -799,7 +839,7 @@
     message = buildImportMessage({ warnings, errors, ignoredCount: selection.ignoredCount, maxRoutes: MAX_ROUTES });
     input.value = '';
     if (routes.length) {
-      try { map.fitBounds(routes.flatMap(r => r.points.map(p => [p.lat, p.lon])), { padding: [30, 30] }); } catch (_) {}
+      try { fitRouteBounds(); } catch (_) {}
       scheduleWeather();
     }
   }
@@ -853,6 +893,7 @@
   function activatePlugin() {
     currentTimestamp = store.get('timestamp');
     subscribeTimestamp();
+    map.on('moveend', refreshMapWorld);
     updateRoutePositions(currentTimestamp);
     for (const route of routes) {
       if (route.visible && !route.polyline && !route.marker) createMapObjects(route);
@@ -865,6 +906,7 @@
     analysisGeneration += 1;
     if (weatherTimer) { clearTimeout(weatherTimer); weatherTimer = null; }
     unsubscribeTimestamp();
+    map.off('moveend', refreshMapWorld);
     routes.forEach(destroyMapObjects);
     analysisOpen = false;
     visualOpen = false;

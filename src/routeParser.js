@@ -1,3 +1,5 @@
+import { createSermarClock } from './sermar.js';
+
 const num = value => {
   if (value == null || value === '') return null;
   const match = String(value).trim().replace(',', '.').match(/[-+]?\d+(?:\.\d+)?/);
@@ -46,6 +48,9 @@ const normalize360 = value => {
 };
 
 export function normalizeWindFields(point) {
+  // SERMAR navigation is source data, including its opposite TWA sign convention.
+  // Never reconstruct a missing direction from this TWA or overwrite exported angles.
+  if (point.windConvention === 'sermar') return { ...point, weatherTwa: signedAngle(point.twd, point.cog) };
   const normalized = { ...point };
   const cog = normalize360(normalized.cog);
   const twd = normalize360(normalized.twd);
@@ -147,13 +152,15 @@ const aliases = {
   pressure: ['pressure', 'pression'],
 };
 
-export const ROUTE_SOURCES = ['Dorado', 'Avalon', 'VRZen', 'eSail4VR', 'ZEZO', 'CSV routeur', 'GPX routeur'];
+export const ROUTE_SOURCES = ['Dorado', 'Avalon', 'VRZen', 'eSail4VR', 'ZEZO', 'SERMAR', 'CSV routeur', 'GPX routeur'];
 
-export function detectCsvSource({ headers = [], sampleText = '' } = {}) {
+export function detectCsvSource({ headers = [], sampleText = '', fileName = '' } = {}) {
   const headerSet = new Set(headers.map(norm));
   const text = String(sampleText || '');
   const has = name => headerSet.has(norm(name));
 
+  const sermarCore = ['date', 'lat', 'lon', 'cap_deg', 'twa_deg', 'twd_deg', 'tws_kn', 'vitesse_kn'];
+  if (sermarCore.every(has) || (/sermar/i.test(fileName) && ['date', 'lat', 'lon', 'cap_deg', 'twa_deg'].every(has))) return 'SERMAR';
   if (has('SailSet') || (has('Heading') && has('Latitude'))) return 'Avalon';
   if (has('DateHeure(UTC)') && has('Voile') && has('Speed(kt)')) return 'ZEZO';
   // Les exports VRZen attestés exposent une distance restante (DTF) et des champs vent/navigation.
@@ -167,6 +174,7 @@ export function detectCsvSource({ headers = [], sampleText = '' } = {}) {
 }
 
 function sourceFromFileName(name = '') {
+  if (/sermar/i.test(name)) return 'SERMAR';
   if (/vrzen|vr_?zen|reverseody/i.test(name)) return 'VRZen';
   if (/zezo|routemarins/i.test(name)) return 'ZEZO';
   if (/avalon/i.test(name)) return 'Avalon';
@@ -250,7 +258,7 @@ function finalize(points) {
   };
 }
 
-export function parseCsv(text, { now = new Date() } = {}) {
+export function parseCsv(text, { now = new Date(), fileName = '', sermar = {} } = {}) {
   const lines = text.replace(/^\uFEFF+/, '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   if (lines.length < 3) throw new Error('CSV vide ou incomplet.');
   const delimiter = detectDelimiter(lines[0]);
@@ -258,7 +266,13 @@ export function parseCsv(text, { now = new Date() } = {}) {
   const idx = Object.fromEntries(Object.entries(aliases).map(([k, v]) => [k, getCol(headers, v)]));
   if (idx.lat < 0 || idx.lon < 0 || idx.time < 0) throw new Error('Colonnes date/latitude/longitude introuvables.');
 
-  const detectedSource = detectCsvSource({ headers, sampleText: lines.slice(0, Math.min(lines.length, 8)).join(' ') });
+  const detectedSource = detectCsvSource({ headers, fileName, sampleText: lines.slice(0, Math.min(lines.length, 8)).join(' ') });
+  const isSermar = detectedSource === 'SERMAR';
+  const sermarClock = isSermar ? createSermarClock({ now, ...sermar }) : null;
+  if (isSermar) {
+    for (const [key, name] of Object.entries({ cog: 'cap_deg', twa: 'twa_deg', twd: 'twd_deg', tws: 'tws_kn', sog: 'vitesse_kn', sail: 'voile', elapsed: 'temps_ecoule' })) idx[key] = getCol(headers, [name]);
+    idx.mode = getCol(headers, ['mode', 'mode_pilotage']);
+  }
   const isAvalon = detectedSource === 'Avalon';
   const isZezo = detectedSource === 'ZEZO';
 
@@ -271,7 +285,10 @@ export function parseCsv(text, { now = new Date() } = {}) {
   for (const line of lines.slice(1)) {
     const row = splitCsvLine(line, delimiter);
     let time;
-    if (isAvalon) {
+    let elapsedMinutes = null;
+    if (isSermar) {
+      ({ time, elapsedMinutes } = sermarClock.parse(clean(row[idx.time]), idx.elapsed >= 0 ? row[idx.elapsed] : null));
+    } else if (isAvalon) {
       const rawAvalonTime = clean(row[idx.time]);
       const hasExplicitYear = /\d{4}/.test(rawAvalonTime);
       if (year == null && !hasExplicitYear) {
@@ -297,13 +314,14 @@ export function parseCsv(text, { now = new Date() } = {}) {
     previous = time;
     points.push({
       time,
+      ...(isSermar ? { windConvention: 'sermar', elapsedMinutes, steeringMode: idx.mode >= 0 && /^(CAP|TWA)$/i.test(clean(row[idx.mode])) ? clean(row[idx.mode]).toUpperCase() : null } : {}),
       lat: num(row[idx.lat]), lon: num(row[idx.lon]),
       cog: idx.cog >= 0 ? num(row[idx.cog]) : null,
       sog: idx.sog >= 0 ? num(row[idx.sog]) : null,
       tws: idx.tws >= 0 ? num(row[idx.tws]) : null,
       twd: idx.twd >= 0 ? num(row[idx.twd]) : null,
-      twa: idx.twa >= 0 ? angle180(row[idx.twa]) : null,
-      sail: idx.sail >= 0 ? normalizeSail(row[idx.sail]) : null,
+      twa: idx.twa >= 0 ? (isSermar ? num(row[idx.twa]) : angle180(row[idx.twa])) : null,
+      sail: idx.sail >= 0 ? (isSermar ? clean(row[idx.sail]) || null : normalizeSail(row[idx.sail])) : null,
       currentSpeed: idx.currentSpeed >= 0 ? num(row[idx.currentSpeed]) : null,
       currentDir: idx.currentDir >= 0 ? num(row[idx.currentDir]) : null,
       pressure: idx.pressure >= 0 ? num(row[idx.pressure]) : null,
@@ -315,6 +333,7 @@ export function parseCsv(text, { now = new Date() } = {}) {
     ...finalized,
     qualityMeta: {
       ...finalized.qualityMeta,
+      ...(isSermar ? { ...sermarClock.meta, windConvention: 'SERMAR : TWA source conservé ; TWA météo = TWD − CAP' } : {}),
       ...(usedLocalAvalonTime ? { dateInterpretation: 'heure locale navigateur', inferredYear } : {}),
     },
   };
@@ -375,7 +394,7 @@ function findExtensionNumber(el, names) {
   return null;
 }
 
-export function parseGpx(text) {
+export function parseGpx(text, { fileName = '' } = {}) {
   const xml = new DOMParser().parseFromString(text, 'application/xml');
   if (xml.querySelector('parsererror')) throw new Error('GPX XML invalide.');
   const creator = xml.documentElement.getAttribute('creator') || '';
@@ -383,18 +402,20 @@ export function parseGpx(text) {
   const pointsEls = candidates.length ? candidates : [...xml.querySelectorAll('rtept, trkpt')];
   if (!pointsEls.length) throw new Error('Aucun waypoint/routepoint/trackpoint dans ce GPX.');
 
+  const sermarGpx = detectGpxSource({ creator, fileName, routeName: xml.querySelector('rte > name, trk > name')?.textContent || '' }) === 'SERMAR';
   const points = pointsEls.map(el => {
     const desc = parseRouteDescription(directText(el, 'desc'));
     const timeText = directText(el, 'time');
     const ms = timeText ? Date.parse(timeText) : NaN;
     return {
+      ...(sermarGpx ? { windConvention: 'sermar' } : {}),
       time: Number.isNaN(ms) ? null : new Date(ms),
       lat: num(el.getAttribute('lat')), lon: num(el.getAttribute('lon')),
-      cog: desc.cog ?? findExtensionNumber(el, ['cog', 'cog_deg', 'course', 'heading', 'hdg']),
-      sog: desc.sog ?? findExtensionNumber(el, ['sog', 'sog_kn']) ?? metersPerSecondToKnots(findExtensionNumber(el, ['speed'])),
+      cog: desc.cog ?? findExtensionNumber(el, ['cog', 'cog_deg', 'course', 'heading', 'hdg', ...(sermarGpx ? ['cap_deg'] : [])]),
+      sog: desc.sog ?? findExtensionNumber(el, ['sog', 'sog_kn', ...(sermarGpx ? ['vitesse_kn'] : [])]) ?? metersPerSecondToKnots(findExtensionNumber(el, ['speed'])),
       tws: desc.tws ?? findExtensionNumber(el, ['tws', 'tws_kn', 'windspeed']),
       twd: desc.twd ?? findExtensionNumber(el, ['twd', 'twd_deg', 'winddir', 'winddirection']),
-      twa: angle180(desc.twa ?? findExtensionNumber(el, ['twa', 'windangle'])),
+      twa: sermarGpx ? desc.twa ?? findExtensionNumber(el, ['twa_deg', 'twa', 'windangle']) : angle180(desc.twa ?? findExtensionNumber(el, ['twa', 'windangle'])),
       sail: normalizeSail(desc.sail ?? directText(el, 'type') ?? null),
       currentSpeed: findExtensionNumber(el, ['currentspeed', 'current_speed_kn', 'current speed']),
       currentDir: findExtensionNumber(el, ['currentdir', 'current_direction_deg', 'current dir']),
@@ -407,11 +428,12 @@ export function parseGpx(text) {
   const hasESailStructure = routePoints.length >= 2
     && routePoints.slice(0, Math.min(routePoints.length, 8)).every(el => directText(el, 'course') && directText(el, 'speed'));
   const metaText = xml.querySelector('metadata')?.textContent || '';
-  const source = detectGpxSource({ creator, metaText, descSample, hasESailStructure });
+  const source = detectGpxSource({ creator, metaText, descSample, hasESailStructure, fileName, routeName: xml.querySelector('rte > name, trk > name')?.textContent || '' });
   return { source, ...finalize(points) };
 }
 
-export function detectGpxSource({ creator = '', metaText = '', descSample = '', hasESailStructure = false } = {}) {
+export function detectGpxSource({ creator = '', metaText = '', descSample = '', hasESailStructure = false, fileName = '', routeName = '' } = {}) {
+  if (/sermar/i.test(`${creator} ${routeName} ${fileName}`)) return 'SERMAR';
   const identity = `${creator} ${metaText} ${descSample}`;
   if (/routemarins/i.test(identity)) return 'ZEZO';
   if (/dorado/i.test(identity)) return 'Dorado';
@@ -422,16 +444,19 @@ export function detectGpxSource({ creator = '', metaText = '', descSample = '', 
   return 'GPX routeur';
 }
 
-export async function parseRouteFile(file) {
+export async function parseRouteFile(file, options = {}) {
   const ext = file.name.split('.').pop()?.toLowerCase();
   const text = await file.text();
   if (ext === 'csv') {
-    const parsed = parseCsv(text);
-    if (parsed.source === 'CSV routeur') parsed.source = sourceFromFileName(file.name || '') || parsed.source;
+    const parsed = parseCsv(text, { ...options, fileName: file.name });
+    if (parsed.source === 'CSV routeur') {
+      const hint = sourceFromFileName(file.name || '');
+      if (hint && hint !== 'SERMAR') parsed.source = hint;
+    }
     return { ...parsed, ...inferRouteMetadata(file.name, parsed.source) };
   }
   if (ext === 'gpx') {
-    const parsed = parseGpx(text);
+    const parsed = parseGpx(text, { fileName: file.name });
     if (parsed.source === 'GPX routeur') parsed.source = sourceFromFileName(file.name || '') || parsed.source;
     return { ...parsed, ...inferRouteMetadata(file.name, parsed.source) };
   }
@@ -443,12 +468,12 @@ export function inferRouteMetadata(fileName = '', source = '') {
   const upper = name.toUpperCase();
   let nativeModel = null;
   if (/ECMWF|\bIFS\b/.test(upper)) nativeModel = 'ecmwf';
-  else if (/NCEP|\bGFS\b/.test(upper)) nativeModel = 'gfs';
+  else if (/NCEP|(?:^|[^A-Z0-9])GFS(?:-V)?(?:[^A-Z0-9]|$)/.test(upper)) nativeModel = 'gfs';
   else if (['Avalon', 'VRZen', 'eSail4VR', 'ZEZO'].includes(source)) nativeModel = 'gfs';
 
   let cycle = null;
   const compact = name.match(/(?:^|[_-])(20\d{8})(?:[_\-.]|$)/);
-  if (compact) {
+  if (compact && source !== 'SERMAR') {
     const stamp = compact[1];
     cycle = `${stamp.slice(0, 4)}-${stamp.slice(4, 6)}-${stamp.slice(6, 8)} ${stamp.slice(8, 10)}Z`;
   }
