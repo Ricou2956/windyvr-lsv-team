@@ -1,5 +1,13 @@
 # WindyVR LSV Team — suivi de publication
 
+## Validation finale locale V1.2.1 et autorisation de publication — 30 septembre 2026
+
+Eric confirme le dernier essai local sur les éléments fournis : version 1.2.1 dans le diagnostic et le PDF ; analyse des quatre routes en 4 secondes sans erreur réseau ; ZEZO 71 points et eSail4VR 208 points, zéro rejet, respectivement 39 et 113 normalisations correctement indiquées. Avalon et SERMAR conservent leurs points et leurs distances. Couverture limitée et ETA non comparables correctement signalées.
+
+Le nouvel export PDF est confirmé complet, lisible et cohérent avec l’écran, sans coupure visible. La mention about:blank en pied de page provient de l’impression du navigateur ; elle est cosmétique et ne donne lieu à aucune modification du plugin.
+
+Ce dernier contrôle clôt la réserve de validation locale et PDF de la préparation ci-dessous. Eric autorise maintenant la fusion vers main, le tag v1.2.1 et le workflow manuel de publication. La réserve Dorado non retesté et la limite horaire de GPX Data Extractor restent documentées et inchangées. Les validations ne sont pas étendues au-delà des observations rapportées. Le résultat technique de publication et la disponibilité de la version publique 1.2.1 seront consignés séparément après vérification.
+
 ## V1.2.1 préparée — non publiée (30 septembre 2026)
 
 Note de version : préservation des points ZEZO CSV/GPX et eSail4VR GPX dont les longitudes continuent au-delà de ±180°, dans la convention bornée ±360°. Normalisations tracées séparément des rejets dans la qualité et le diagnostic. Aucun changement des horaires déclarés, des calculs météo, de couverture, de concordance ou des règles ETA/destination.
