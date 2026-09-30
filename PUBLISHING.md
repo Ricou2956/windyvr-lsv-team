@@ -1,5 +1,17 @@
 # WindyVR LSV Team — suivi de publication
 
+## Publication technique V1.2.1 réussie — 30 septembre 2026
+
+Dernier essai local validé par Eric, PDF compris (détails ci-dessous). Fusion de dev-v1.2.0 vers main par avance rapide, sans conflit. Tests complets réussis sur le résultat fusionné, version finale 1.2.1 vérifiée ; le build Windows avait réussi lors de la préparation et aucun code produit n’a changé depuis. Build Linux et garde-fous de publication réussis dans le workflow.
+
+- Commit publié : 146467b18a24035ec4045dc756f27a0e9401fd5a.
+- Tag annoté v1.2.1 créé et poussé sur ce commit, sans écrasement ; v1.2.0 inchangé sur 383736eb11ae9d70d9bea6cc71b4dc186321f2a2.
+- [Workflow manuel depuis main](https://github.com/Ricou2956/windyvr-lsv-team/actions/runs/36725106229) : terminé avec succès.
+- Réponse Windy : installUrl [plugin 1.2.1](https://windy-plugins.com/3653906/windy-plugin-windyvr-lsv-team/1.2.1/plugin.min.js). HTTPS 200 confirmé, 117751 octets, identifiant et version 1.2.1 présents.
+- **Publication technique réussie.** Aucune demande distincte de validation Windy envoyée pendant cette mission. **Disponibilité de la version 1.2.1 dans la galerie non encore confirmée** ; la présence du plugin 1.2.0 y était déjà confirmée par Eric. Contrôler le numéro de version après mise à jour/réinstallation publique et, si nécessaire, demander à Windy la validation de la mise à jour.
+
+La réserve Dorado et la limite horaire de GPX Data Extractor restent documentées ; aucune compensation horaire. Identifiant, routerPath, guides PDF, scripts multi-PC et sauvegardes inchangés. Le compte rendu de publication est un commit documentaire postérieur : le tag reste sur le code réellement envoyé. Cette section constitue le statut actuel et prévaut sur les mentions de préparation/non-publication historiques ci-dessous.
+
 ## Validation finale locale V1.2.1 et autorisation de publication — 30 septembre 2026
 
 Eric confirme le dernier essai local sur les éléments fournis : version 1.2.1 dans le diagnostic et le PDF ; analyse des quatre routes en 4 secondes sans erreur réseau ; ZEZO 71 points et eSail4VR 208 points, zéro rejet, respectivement 39 et 113 normalisations correctement indiquées. Avalon et SERMAR conservent leurs points et leurs distances. Couverture limitée et ETA non comparables correctement signalées.
