@@ -1,10 +1,10 @@
-# WindyVR LSV Team 1.2.0
+# WindyVR LSV Team 1.2.1 — préparation
 
 Plugin Windy destiné à l'analyse météo de routes issues de routeurs Virtual Regatta. Il ne calcule pas une nouvelle route : il compare les routes importées et mesure leur exposition aux modèles ECMWF, GFS et ICON.
 
 ## État de la version et documentation
 
-Version finale 1.2.0 : **publication technique réussie** depuis main, tag v1.2.0 ([workflow](https://github.com/Ricou2956/windyvr-lsv-team/actions/runs/36416661225)). Demande de validation Windy non envoyée pendant cette mission ; disponibilité dans la bibliothèque publique non confirmée. Voir [le suivi de publication](PUBLISHING.md). Les validations des lots Honolulu–Yokohama et Round Britain Record sont consignées dans [le suivi](SERMAR_VALIDATION.md). Dorado reste explicitement non retesté en conditions réelles, son service étant indisponible selon Eric.
+V1.2.0 est publique et accessible dans la galerie selon Eric. Le correctif Longitudes a été relu et testé localement ; V1.2.1 est préparée sur dev-v1.2.0, **pas encore publiée**. Voir [le suivi de publication](PUBLISHING.md) pour les validations réelles et les limites connues. Les guides PDF V1.2.0 restent inchangés ; Dorado demeure non retesté en conditions réelles.
 
 - [Guide utilisateur V1.2.0](docs/WindyVR_1.2.0_Guide_utilisateur.pdf) — version corrigée validée par Eric.
 - [Guide technique V1.2.0](docs/WindyVR_1.2.0_Guide_technique.pdf).

@@ -1,6 +1,6 @@
 {
   "name": "windy-plugin-windyvr-lsv-team",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Analyse météo multi-route Virtual Regatta pour WindyVR LSV Team",
   "main": "dist/plugin.min.js",
   "type": "module",

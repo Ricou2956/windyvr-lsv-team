@@ -1,4 +1,16 @@
-# WindyVR LSV Team 1.2.0 — suivi de publication
+# WindyVR LSV Team — suivi de publication
+
+## V1.2.1 préparée — non publiée (30 septembre 2026)
+
+Note de version : préservation des points ZEZO CSV/GPX et eSail4VR GPX dont les longitudes continuent au-delà de ±180°, dans la convention bornée ±360°. Normalisations tracées séparément des rejets dans la qualité et le diagnostic. Aucun changement des horaires déclarés, des calculs météo, de couverture, de concordance ou des règles ETA/destination.
+
+Contrôles de préparation réussis : npm test, npm run build sous Windows avec Git Bash comme shell du script (sans modification des scripts), et git diff --check. Versions 1.2.1 concordantes dans les trois fichiers sources, les deux niveaux du lock, dist/plugin.json et dist/package.json. Aucune réinstallation de dépendances.
+
+Le correctif testé localement est enregistré dans le commit 6570a3d. package.json, package-lock.json (version générale et paquet racine) et src/pluginConfig.ts passent ensemble à 1.2.1. Identifiant windy-plugin-windyvr-lsv-team et routerPath /windyvr-lsv-team conservés. Les deux PDF V1.2.0 restent inchangés ; ils restent les guides disponibles pour cette correction ciblée.
+
+La V1.2.0 reste la version publique accessible. V1.2.1 est préparée uniquement sur dev-v1.2.0 ; aucun merge main, tag v1.2.1 ou workflow de publication n’est autorisé à cette étape. Le dernier contrôle du build numéroté 1.2.1 se fera dans Windy avec https://localhost:9999/plugin.js?test=1.2.1-longitudes-20260930 ; ce chargement local ne met pas à jour le paquet public. Sélectionner cette URL dans Developer mode puis « Install & open plugin ». Vérifier la version et les effectifs/normalisations du lot déjà validé, sans imposer de retrouver les statistiques des anciennes routes amputées.
+
+Limites conservées : incohérence horaire connue de GPX Data Extractor sur le lot communiqué (RouteMarins est la référence horaire), sans compensation automatique ; aucun nouvel export PDF confirmé après le correctif ; Dorado demeure non retesté en conditions réelles selon le suivi existant. Les autres validations réelles restent acquises.
 
 ## Validation du correctif Longitudes — 30 septembre 2026
 
