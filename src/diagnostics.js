@@ -1,4 +1,4 @@
-export const DIAGNOSTICS_SCHEMA_VERSION = 5;
+export const DIAGNOSTICS_SCHEMA_VERSION = 6;
 
 function emptyModelStats() {
   return {
@@ -214,6 +214,8 @@ function routeDiagnostics(route, routeIndex) {
     originalPointCount: Number.isFinite(route?.qualityMeta?.originalPointCount) ? route.qualityMeta.originalPointCount : points.length,
     invalidPositions: invalidPositions + (Number.isFinite(route?.qualityMeta?.discardedInvalidPositions) ? route.qualityMeta.discardedInvalidPositions : 0),
     discardedInvalidPositions: Number.isFinite(route?.qualityMeta?.discardedInvalidPositions) ? route.qualityMeta.discardedInvalidPositions : 0,
+    normalizedLongitudes: Number.isFinite(route?.qualityMeta?.normalizedLongitudes) ? route.qualityMeta.normalizedLongitudes : 0,
+    longitudeConvention: route?.qualityMeta?.longitudeConvention || 'canonical [-180,180]',
     dateInterpretation: route?.qualityMeta?.dateInterpretation || null,
     inferredYear: Number.isFinite(route?.qualityMeta?.inferredYear) ? route.qualityMeta.inferredYear : null,
     ...(route?.qualityMeta?.windConvention ? {

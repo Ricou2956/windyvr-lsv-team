@@ -87,3 +87,14 @@ assert.deepEqual(pacific.points,copy);
 assert.ok(source.includes("map.on('moveend', refreshMapWorld)"));
 assert.ok(source.includes("map.off('moveend', refreshMapWorld)"));
 console.log('World-copy regression: view +159/-201/+519, routes before/after analysis, markers, risk, bounds and event centring: OK');
+
+// Imported extended longitude must reach the actual Leaflet boundary continuously.
+const {parseCsv}=await import('../src/routeParser.js');
+const {csv}=await import('./longitudeChecks.js');
+for(const lons of [[-179,-181,-219,140],[179,181,219,-140]]){
+ const parsed=parseCsv(csv(lons));const r={...route([], 'imported'),...parsed};const h=harness([r]);h.createMapObjects(r);h.fitRouteBounds();continuous(r.polyline.coords);
+ const saved=structuredClone(r.points);
+ for(let i=1;i<r.points.length;i++){const timestamp=(+r.points[i-1].time + +r.points[i].time)/2;h.updateRoutePositions(timestamp);assert.ok(Math.abs(r.marker.coords[1]-(r.polyline.coords[i-1][1]+r.polyline.coords[i][1])/2)<1e-8);h.jumpToEvent({routeId:r.id,timestamp});assert.deepEqual(h.calls.pans.at(-1),r.marker.coords);}
+ h.createRiskLayers(r,r.points.map(p=>({timestamp:+p.time,level:'red'})));for(const layer of r.riskLayers)continuous(layer.coords);assert.deepEqual(r.points,saved);
+}
+console.log('Imported extended longitudes: actual Leaflet routes, markers, risk, bounds and pan: OK');

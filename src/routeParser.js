@@ -234,8 +234,25 @@ function isValidPosition(point) {
   return Number.isFinite(point?.lat) && Number.isFinite(point?.lon) && Math.abs(point.lat) <= 90 && Math.abs(point.lon) <= 180;
 }
 
-function finalize(points) {
-  const timedInInputOrder = points
+// Only attested exporter formats may use one-turn longitudes. No arbitrary modulo.
+// Canonical [-180,180] stays unchanged; extended [-360,360] shifts once by 360.
+export function normalizeImportedLongitude(value, allowOneTurn = false) {
+  if (!Number.isFinite(value)) return null;
+  if (Math.abs(value) <= 180) return value;
+  if (!allowOneTurn || Math.abs(value) > 360) return null;
+  return value < -180 ? value + 360 : value - 360;
+}
+
+function finalize(points, { allowOneTurn = false } = {}) {
+  let normalizedLongitudes = 0;
+  const imported = points.map(point => {
+    const lon = normalizeImportedLongitude(point.lon, allowOneTurn);
+    if (lon == null || lon === point.lon || !Number.isFinite(point.lat) || Math.abs(point.lat) > 90
+      || !(point.time instanceof Date) || Number.isNaN(point.time.getTime())) return point;
+    normalizedLongitudes += 1;
+    return { ...point, lon, sourceLongitude: point.lon };
+  });
+  const timedInInputOrder = imported
     .filter(p => p.time instanceof Date && !Number.isNaN(p.time.getTime()));
   const discardedInvalidPositions = timedInInputOrder.filter(point => !isValidPosition(point)).length;
   const validInInputOrder = timedInInputOrder.filter(isValidPosition);
@@ -263,6 +280,8 @@ function finalize(points) {
       deduplicatedTimestamps: qualityMeta.duplicateTimestamps,
       originalPointCount: timedInInputOrder.length,
       discardedInvalidPositions,
+      normalizedLongitudes,
+      longitudeConvention: allowOneTurn ? 'one-turn [-360,360] -> [-180,180]' : 'canonical [-180,180]',
     },
   };
 }
@@ -339,12 +358,13 @@ export function parseCsv(text, { now = new Date(), fileName = '', sermar = {} } 
       pressure: idx.pressure >= 0 ? num(row[idx.pressure]) : null,
     });
   }
-  const finalized = finalize(points);
+  const finalized = finalize(points, { allowOneTurn: detectedSource === 'ZEZO' });
   return {
     source: detectedSource,
     ...finalized,
     qualityMeta: {
       ...finalized.qualityMeta,
+      ...(isUtcTimeColumn ? { dateInterpretation: 'UTC selon la colonne DateHeure(UTC)' } : {}),
       ...(isSermar ? { ...sermarClock.meta, windConvention: 'SERMAR : TWA source conservé ; TWA météo = TWD − CAP' } : {}),
       ...(usedLocalAvalonTime ? { dateInterpretation: 'heure locale navigateur', inferredYear } : {}),
     },
@@ -441,7 +461,7 @@ export function parseGpx(text, { fileName = '' } = {}) {
     && routePoints.slice(0, Math.min(routePoints.length, 8)).every(el => directText(el, 'course') && directText(el, 'speed'));
   const metaText = xml.querySelector('metadata')?.textContent || '';
   const source = detectGpxSource({ creator, metaText, descSample, hasESailStructure, fileName, routeName: xml.querySelector('rte > name, trk > name')?.textContent || '' });
-  return { source, ...finalize(points) };
+  return { source, ...finalize(points, { allowOneTurn: source === 'ZEZO' || source === 'eSail4VR' }) };
 }
 
 export function detectGpxSource({ creator = '', metaText = '', descSample = '', hasESailStructure = false, fileName = '', routeName = '' } = {}) {

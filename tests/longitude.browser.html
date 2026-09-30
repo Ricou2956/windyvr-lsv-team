@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><pre id="result">RUNNING</pre><script type="module">
+import {parseCsv,parseGpx} from '/src/routeParser.js';
+import {syntheticChecks,checkRoute,check} from '/tests/longitudeChecks.js';
+try {
+ syntheticChecks(true);
+ const results=[];
+ if(location.search.includes('fixtures=1')){
+  const names=['ESAIL_honolulu_yok_diwel_didrou_20260930_140100.gpx','ZEZO_GPX EXTRACTOR zezo_data.csv','ZEZO_RouteMarins_Honolulu-Yokohama_2026-09-30.gpx'];
+  const routes=[],raws=[];
+  for(const name of names){
+   const response=await fetch('/fixtures/'+encodeURIComponent(name));check(response.ok,'missing supplied file '+name);const text=await response.text();
+   let r,raw;
+   if(name.endsWith('.csv')){r=parseCsv(text);raw=text.trim().replace(/^\uFEFF/,'').split(/\r?\n/).slice(1).map(s=>{const c=s.split(';');check(c[0]===c[1],'two exported date columns identical');return {lat:Number(c[3]),lon:Number(c[4]),time:new Date(c[0].replace(' ','T')+'Z')}})}
+   else{r=parseGpx(text);const xml=new DOMParser().parseFromString(text,'application/xml');raw=[...xml.querySelectorAll('wpt,rtept,trkpt')].map(e=>({lat:Number(e.getAttribute('lat')),lon:Number(e.getAttribute('lon')),time:new Date(e.querySelector('time').textContent)}))}
+   results.push(checkRoute(r,raw));routes.push(r);raws.push(raw);
+  }
+  check(routes[0].points.length===208 && routes[0].qualityMeta.normalizedLongitudes===113,'eSail counts');
+  check(raws[0].at(-1).lon>0,'eSail final canonical positive longitude');
+  for(const r of routes.slice(1))check(r.points.length===71 && r.qualityMeta.normalizedLongitudes===39,'ZEZO counts');
+  let maxCoordinateDelta=0;
+  for(let i=0;i<71;i++){const c=routes[1].points[i],g=routes[2].points[i];check(+c.time - +g.time===7200000,'constant source +2h '+i);maxCoordinateDelta=Math.max(maxCoordinateDelta,Math.abs(c.lat-g.lat),Math.abs(c.lon-g.lon));}
+  check(maxCoordinateDelta<0.00014,'matching coordinates');
+  results.push({zezoOffsetHours:2,maxCoordinateDelta});
+ }
+ document.querySelector('#result').textContent='PASS native DOMParser '+JSON.stringify(results);
+}catch(e){document.querySelector('#result').textContent='FAIL '+e.stack}
+</script>

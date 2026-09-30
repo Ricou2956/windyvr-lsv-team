@@ -25,6 +25,7 @@ export function assessRouteQuality(route) {
   if (duplicates) issues.push(`${duplicates} doublon(s) d’horodatage fusionné(s)`);
   if (reversed) issues.push(`${reversed} date(s) inversée(s) dans le fichier source`);
 
+  if (meta.normalizedLongitudes) issues.push(meta.normalizedLongitudes + ' longitude(s) source hors ±180° ramenée(s) dans ±180° (convention ±360°) ; points conservés');
   if (meta.windConvention) issues.push(meta.windConvention);
   if (meta.yearAssumption) issues.push('Dates : ' + meta.inferredYear + ' (' + meta.yearAssumption + '), ' + meta.dateInterpretation);
   if (meta.elapsedMismatches) issues.push(meta.elapsedMismatches + ' écart(s) entre dates et temps écoulé');
